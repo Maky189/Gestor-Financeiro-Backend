@@ -1,5 +1,7 @@
 📂 Organização de pastas
 finance-system/
+
+```bash
 │
 ├── src/
 │   ├── config/
@@ -13,7 +15,7 @@ finance-system/
 │
 ├── package.json
 └── README.md
-
+```
 
 src/config/ → Contém as configurações do sistema, como conexão ao banco de dados e variáveis de ambiente.
 
