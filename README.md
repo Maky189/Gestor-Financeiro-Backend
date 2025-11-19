@@ -34,3 +34,25 @@ src/app.js → Arquivo principal da aplicação; onde o servidor e as rotas são
 package.json → Define dependências e scripts do projeto.
 
 README.md → Documento de descrição geral e instruções de uso do sistema.
+
+
+
+Como executar:
+
+1. Instale dependências:
+
+```bash
+npm install
+```
+
+2. Desenvolvimento:
+
+```bash
+npm run dev
+```
+
+3. API:
+
+- GET  /api/users/:username >> procura se o usuario existe ou nao
+
+Dados em `src/data/db.json` (formato JSON).
