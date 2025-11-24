@@ -1,6 +1,16 @@
 const fs = require('fs').promises;
 const { DB_FILE } = require('../config/database');
 
+// escrita simples na memoria para evitar corrupcao concorrente
+let writeLock = Promise.resolve();
+function withWriteLock(fn) {
+  // esperar a ultima escrita terminar antes de iniciar nova
+  const op = writeLock.then(() => fn());
+  //erros nao bloqueiam a fila
+  writeLock = op.catch(() => {});
+  return op;
+}
+
 // gerar id
 function generateId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 9);
@@ -19,8 +29,14 @@ async function readDB() {
 }
 
 async function writeDB(obj) {
-  await fs.mkdir(require('path').dirname(DB_FILE), { recursive: true });
-  await fs.writeFile(DB_FILE, JSON.stringify(obj, null, 2), 'utf8');
+  // serialize writes to avoid concurrent write races
+  return withWriteLock(async () => {
+    await fs.mkdir(require('path').dirname(DB_FILE), { recursive: true });
+    // write to a temp file then rename for atomicity
+    const tmp = DB_FILE + '.tmp';
+    await fs.writeFile(tmp, JSON.stringify(obj, null, 2), 'utf8');
+    await fs.rename(tmp, DB_FILE);
+  });
 }
 
 async function getCollection(name) {
@@ -32,6 +48,21 @@ async function writeCollection(name, arr) {
   const db = await readDB();
   db[name] = arr;
   await writeDB(db);
+}
+
+// get first record matching field === value (case-insensitive for strings)
+async function getByField(name, field, value) {
+  const col = await getCollection(name);
+  if (typeof value === 'string') {
+    const val = value.toLowerCase();
+    return col.find((r) => r[field] && String(r[field]).toLowerCase() === val) || null;
+  }
+  return col.find((r) => r[field] === value) || null;
+}
+
+async function exists(name, field, value) {
+  const rec = await getByField(name, field, value);
+  return !!rec;
 }
 
 async function getAll(name) {
@@ -103,4 +134,6 @@ module.exports = {
   insert,
   update,
   remove,
+  getByField,
+  exists,
 };
