@@ -1,12 +1,11 @@
 {
   "users": [
     {
-      "username": "Marcos",
-      "id": 1
-    },
-    {
-      "username": "Flavia",
-      "id": 2
+      "id": 1,
+      "username": "Pericles",
+      "email": "pericles@example.com",
+      "passwordHash": "$2a$10$djHIeYdd/ix6XLI7NhsiDOGzrfjBdWQ6kFKKWXQSTUXt.Kk3VPTTW",
+      "createdAt": "2025-11-27T13:04:22.446Z"
     }
   ]
 }
