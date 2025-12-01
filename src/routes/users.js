@@ -10,7 +10,7 @@ router.get('/', ctrl.list);
 
 router.post('/', validateCreate, ctrl.create);
 
-//router.delete('/:username', ctrl.remove);
+//router.delete('/', ctrl.remove);
 
 router.get('/:username', ctrl.check);
 

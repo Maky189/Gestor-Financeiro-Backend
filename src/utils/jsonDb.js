@@ -1,4 +1,5 @@
 const fs = require('fs').promises;
+const path = require('path');
 const { DB_FILE } = require('../config/database');
 
 // escrita simples na memoria para evitar corrupcao concorrente

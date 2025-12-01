@@ -1,4 +1,4 @@
-const db = require('../utils/jsonDb');
+const db = require('../utils/db');
 const bcrypt = require('bcryptjs');
 
 const COLLECTION = 'users';
@@ -27,12 +27,16 @@ async function create(req, res, next) {
     const confirmpassword = req.validated && req.validated.confirmpassword ? req.validated.confirmpassword : (req.body && req.body.confirmpassword ? String(req.body.confirmpassword) : '');
 
 
-    const users = await db.getAll(COLLECTION);
-    const exists = users.some((u) => (u.username && String(u.username).toLowerCase() === username.toLowerCase()) || (u.email && String(u.email).toLowerCase() === email.toLowerCase()));
-    if (exists) return res.status(409).json({ error: 'user already exists' });
+    const existingByUsername = await db.getByField(COLLECTION, 'username', username);
+    const existingByEmail = await db.getByField(COLLECTION, 'email', email);
+    if (existingByUsername || existingByEmail) return res.status(409).json({ error: 'user already exists' });
 
     const passwordHash = await bcrypt.hash(password, 10);
-    const record = await db.insert(COLLECTION, { username, email, passwordHash, createdAt: new Date().toISOString() });
+
+    // Formato para MariaDB
+    const now = new Date();
+    const createdAt = now.toISOString().slice(0, 19).replace('T', ' ');
+    const record = await db.insert(COLLECTION, { username, email, passwordHash, createdAt });
 
     const { passwordHash: _ph, ...safe } = record;
     res.status(201).json(safe);
@@ -45,13 +49,31 @@ async function check(req, res, next) {
   try {
     const username = req.params.username;
     if (!username) return res.status(400).json({ error: 'username required' });
-    const users = await db.getAll(COLLECTION);
-    const found = users.some((u) => String(u.username).toLowerCase() === String(username).toLowerCase());
-    if (found) return res.json({ ok: true });
-    return res.status(404).json({ ok: false, error: 'Not found' });
+    const found = await db.getByField(COLLECTION, 'username', username);
+    if (!found) return res.status(404).json({ ok: false, error: 'Not found' });
+    // Return full user record (including passwordHash)
+    return res.json(found);
   } catch (err) {
     next(err);
   }
 }
 
-module.exports = { list, create, check};
+async function remove(req, res, next) {
+  try {
+    const username = req.body && req.body.username ? String(req.body.username).trim() : '';
+    if (!username) return res.status(400).json({ error: 'username required' });
+    
+    const found = await db.getByField(COLLECTION, 'username', username);
+    if (!found) return res.status(404).json({ error: 'user not found' });
+    
+    const deleted = await db.remove(COLLECTION, found.id);
+    if (deleted) {
+      return res.json({ ok: true, message: `User ${username} deleted` });
+    }
+    return res.status(500).json({ error: 'failed to delete user' });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { list, create, check, remove };
