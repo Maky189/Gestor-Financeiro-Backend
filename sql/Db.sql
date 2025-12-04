@@ -4,6 +4,7 @@ USE gestor_db;
 CREATE TABLE utilizador(
     id INT PRIMARY KEY AUTO_INCREMENT,
     nome VARCHAR(255) NOT NULL,
+    username VARCHAR(255) NOT NULL,
     apelido VARCHAR(255)NOT NULL,
     email VARCHAR(255)NOT NULL,
     password VARCHAR(255)NOT NULL,

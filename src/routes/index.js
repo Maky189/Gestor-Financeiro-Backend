@@ -1,8 +1,8 @@
 const express = require('express');
-const users = require('./users');
+const users = require('./utiliador');
 
 const router = express.Router();
 
-router.use('/users', users);
+router.use('/utilizador', users);
 
 module.exports = router;

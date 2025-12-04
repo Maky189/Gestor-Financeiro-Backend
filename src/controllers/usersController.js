@@ -1,7 +1,7 @@
 const db = require('../utils/db');
 const bcrypt = require('bcryptjs');
 
-const COLLECTION = 'users';
+const COLLECTION = 'utilizador';
 
 // lista de users
 async function list(req, res, next) {
