@@ -3,16 +3,26 @@ finance-system/
 
 ```bash
 │
+├── sql/
+│   ├──Db.sql
 ├── src/
 │   ├── config/
 │   │   └── database.js
 │   ├── controllers/
-│   ├── models/
+│   │   └── usersController.js
+│   ├── data/
+│   │   └── db.json
 │   ├── routes/
+│   │   ├── index.js
+│   │   └── users.js
 │   ├── middleware/
+│   │   ├── errorHandler.js  
+│   │   └── validateUser.js
 │   ├── utils/
-│   └── app.js
-│
+│   │   ├── db.js
+│   │   └── jsonDb.js
+│   ├── app.js
+│   └── users.test.js
 ├── package.json
 └── README.md
 ```
@@ -80,14 +90,18 @@ O servidor estará disponível em `http://localhost:3000`
 
 ### Base URL: `/api/users`
 
+Note: the application now uses the SQL schema provided in `sql/Db.sql`. The main user table is `utilizador` and stores the hashed password in the `password` column.
+
 #### 1. **Listar todos os usuários**
 - **Método:** `GET /api/users`
-- **Descrição:** Retorna lista de todos os usuários (sem exibir `passwordHash`)
+- **Descrição:** Retorna lista de todos os usuários (sem exibir a coluna `password`)
 - **Resposta (200):**
 ```json
 [
   {
     "id": 1,
+    "nome": "Marcos",
+    "apelido": "Gomes",
     "username": "maky188",
     "email": "maky188@example.com",
     "createdAt": "2025-12-01T10:30:00.000Z"
@@ -115,6 +129,8 @@ fetch('http://localhost:3000/api/users')
 - **Body (JSON):**
 ```json
 {
+  "nome": "Leonardo",
+  "apelido": "Dionisio",
   "username": "leonardo1234",
   "email": "leo1234@example.com",
   "password": "password123",
@@ -132,6 +148,8 @@ fetch('http://localhost:3000/api/users')
 ```json
 {
   "id": 1,
+  "nome": "Leonardo",
+  "apelido" : "Dionisio",
   "username": "leonardo1234",
   "email": "leo1234@example.com",
   "createdAt": "2025-12-01T10:30:00.000Z"
@@ -140,6 +158,8 @@ fetch('http://localhost:3000/api/users')
 
 - **Erros (400/409):**
 ```json
+{ "error" : "name required" }
+{ "error": "apelido required" }
 { "error": "username required" }
 { "error": "invalid email" }
 { "error": "password must be at least 6 characters" }
@@ -152,6 +172,8 @@ fetch('http://localhost:3000/api/users')
 curl -X POST http://localhost:3000/api/users \
   -H "Content-Type: application/json" \
   -d '{
+  "nome" : "Leonardo",
+  "apelido": "Dionisio",
   "username": "leonardo1234",
   "email": "leo1234@example.com",
   "password": "password123",
@@ -165,6 +187,8 @@ fetch('http://localhost:3000/api/users', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({
+    nome: 'Leonardo',
+    apelido: 'Dionisio',
     username: 'leonardo1234',
     email: 'leo1234@example.com',
     password: 'password123',
@@ -187,6 +211,8 @@ fetch('http://localhost:3000/api/users', {
 ```json
 {
   "id": 1,
+  "nome": "Kelly",
+  "apelido": "Fortes",
   "username": "kelly_444",
   "email": "kelly444@example.com",
   "passwordHash": "$2a$10$...",
@@ -221,8 +247,6 @@ fetch('http://localhost:3000/api/users/kelly444')
   .then(user => console.log(user));
 ```
 
-**Security note:** Returning `passwordHash` is sensitive. Prefer restricting this endpoint or removing `passwordHash` from responses in production.
-
 ---
 
 ## Exemplos de Uso Completo
@@ -233,7 +257,9 @@ fetch('http://localhost:3000/api/users/kelly444')
 curl -X POST http://localhost:3000/api/users \
   -H "Content-Type: application/json" \
   -d '{
-    "username": "alice",
+    "nome": "John",
+    "Apelido": "Melicio",
+    "username": "joao123",
     "email": "alice@example.com",
     "password": "password123",
     "confirmpassword": "password123"
@@ -243,7 +269,7 @@ curl -X POST http://localhost:3000/api/users \
 curl -X GET http://localhost:3000/api/users
 
 # Verificar se usuário existe
-curl -X GET http://localhost:3000/api/users/alice
+curl -X GET http://localhost:3000/api/users/kelly444
 ```
 
 ### Exemplo 2: Tratamento de Erros
@@ -252,7 +278,9 @@ curl -X GET http://localhost:3000/api/users/alice
 curl -X POST http://localhost:3000/api/users \
   -H "Content-Type: application/json" \
   -d '{
-    "username": "bob",
+    "nome": "John",
+    "Apelido": "Melicio",
+    "username": "joao",
     "email": "invalid-email",
     "password": "password123",
     "confirmpassword": "password123"
@@ -263,8 +291,10 @@ curl -X POST http://localhost:3000/api/users \
 curl -X POST http://localhost:3000/api/users \
   -H "Content-Type: application/json" \
   -d '{
-    "username": "bob",
-    "email": "bob@example.com",
+    "nome": "John",
+    "apelido" "Melicio",
+    "username": "joao",
+    "email": "joao@example.com",
     "password": "123",
     "confirmpassword": "123"
   }'
@@ -274,8 +304,10 @@ curl -X POST http://localhost:3000/api/users \
 curl -X POST http://localhost:3000/api/users \
   -H "Content-Type: application/json" \
   -d '{
-    "username": "alice",
-    "email": "alice@example.com",
+    "nome": "Marcos",
+    "apelido": "Gomes",
+    "username": "maky188",
+    "email": "maky188@example.com",
     "password": "password123",
     "confirmpassword": "password123"
   }'
@@ -286,17 +318,16 @@ curl -X POST http://localhost:3000/api/users \
 
 ## Banco de Dados (MariaDB)
 
-### Tabela `users`
+### Tabela `usuarios`
 ```sql
-CREATE TABLE `users` (
-  `id` bigint NOT NULL AUTO_INCREMENT,
-  `username` varchar(255) NOT NULL UNIQUE,
-  `email` varchar(255) NOT NULL UNIQUE,
-  `passwordHash` varchar(255) NOT NULL,
-  `createdAt` datetime DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `ux_users_username` (`username`),
-  UNIQUE KEY `ux_users_email` (`email`)
+CREATE TABLE utilizador(
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    nome VARCHAR(255) NOT NULL,
+    username VARCHAR(255) NOT NULL,
+    apelido VARCHAR(255)NOT NULL,
+    email VARCHAR(255)NOT NULL,
+    password VARCHAR(255)NOT NULL,
+    hora_de_registo TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 ```
 
@@ -307,7 +338,7 @@ Configure em `src/environment.env`:
 DB_HOST=localhost          # Host do MariaDB
 DB_USER=root               # Usuário do MariaDB
 DB_PASSWORD=               # Senha (deixe em branco se usar socket auth)
-DB_NAME=my_database        # Nome do banco de dados
+DB_NAME=gestorDB           # Nome do banco de dados
 PORT=3000                  # Porta da aplicação (opcional)
 ```
 
@@ -331,7 +362,7 @@ PORT=3000                  # Porta da aplicação (opcional)
 ### Erro "Table 'users' doesn't exist"
 Execute o script SQL:
 ```bash
-mariadb -u root my_database < sql/create_tables.sql
+mariadb -u root my_database < sql/DB.sql
 ```
 
 ### Porta 3000 já em uso

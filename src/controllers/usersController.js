@@ -1,6 +1,5 @@
 const db = require('../utils/db');
 const bcrypt = require('bcryptjs');
-
 const COLLECTION = 'utilizador';
 
 // lista de users
@@ -8,7 +7,7 @@ async function list(req, res, next) {
   try {
     const users = await db.getAll(COLLECTION);
     const safe = users.map((u) => {
-      const { passwordHash, ...rest } = u;
+      const { password, ...rest } = u;
       return rest;
     });
     res.json(safe);
@@ -21,6 +20,8 @@ async function list(req, res, next) {
 async function create(req, res, next) {
   try {
     // preferir valores normalizados do middleware 
+    const nome = req.validated && req.validated.nome ? req.validated.nome : (req.body && req.body.nome ? String(req.body.nome).trim() : '');
+    const apelido = req.validated && req.validated.apelido ? req.validated.apelido : (req.body && req.body.apelido ? String(req.body.apelido).trim() : '');
     const username = req.validated && req.validated.username ? req.validated.username : (req.body && req.body.username ? String(req.body.username).trim() : '');
     const email = req.validated && req.validated.email ? req.validated.email : (req.body && req.body.email ? String(req.body.email).trim().toLowerCase() : '');
     const password = req.validated && req.validated.password ? req.validated.password : (req.body && req.body.password ? String(req.body.password) : '');
@@ -36,9 +37,18 @@ async function create(req, res, next) {
     // Formato para MariaDB
     const now = new Date();
     const createdAt = now.toISOString().slice(0, 19).replace('T', ' ');
-    const record = await db.insert(COLLECTION, { username, email, passwordHash, createdAt });
+    const payload = {
+      nome,
+      apelido,
+      username,
+      email,
+      password: passwordHash,
+      hora_de_registo: createdAt,
+    };
 
-    const { passwordHash: _ph, ...safe } = record;
+    const record = await db.insert(COLLECTION, payload);
+
+    const { password: _pw, ...safe } = record;
     res.status(201).json(safe);
   } catch (err) {
     next(err);
@@ -51,7 +61,6 @@ async function check(req, res, next) {
     if (!username) return res.status(400).json({ error: 'username required' });
     const found = await db.getByField(COLLECTION, 'username', username);
     if (!found) return res.status(404).json({ ok: false, error: 'Not found' });
-    // Return full user record (including passwordHash)
     return res.json(found);
   } catch (err) {
     next(err);
