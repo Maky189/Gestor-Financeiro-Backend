@@ -42,5 +42,9 @@ CREATE TABLE chaves(
     id INT PRIMARY KEY AUTO_INCREMENT,
     chave VARCHAR(255) NOT NULL,
     gasto_id INT NOT NULL,
-    FOREIGN KEY (gasto_id) REFERENCES gastos(id)
+    FOREIGN KEY (gasto_id) REFERENCES gastos(id),
+    conta_id INT NOT NOT,
+    FOREIGN KEY (conta_id) REFERENCES conta(id),
+    categoria_id INT NOT NULL,
+    FOREIGN KEY (categoria_id) REFERENCES (categorias)
 );
