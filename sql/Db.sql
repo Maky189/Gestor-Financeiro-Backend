@@ -11,7 +11,7 @@ CREATE TABLE utilizador(
     hora_de_registo TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE categorias(
+CREATE TABLE criar_categorias(
     id INT PRIMARY KEY AUTO_INCREMENT,  
     nome VARCHAR(30) NOT NULL,
     utilizador_id INT,
@@ -35,7 +35,7 @@ CREATE TABLE gastos(
     preco DOUBLE NOT NULL,
     data DATE DEFAULT (CURRENT_DATE),
     categoria_id INT,
-    FOREIGN KEY (categoria_id) REFERENCES categorias(id)
+    FOREIGN KEY (categoria_id) REFERENCES criar_categorias(id)
 );
 
 CREATE TABLE chaves(
@@ -43,8 +43,16 @@ CREATE TABLE chaves(
     chave VARCHAR(255) NOT NULL,
     gasto_id INT NOT NULL,
     FOREIGN KEY (gasto_id) REFERENCES gastos(id),
-    conta_id INT NOT NOT,
+    conta_id INT NOT NULL,
     FOREIGN KEY (conta_id) REFERENCES conta(id),
     categoria_id INT NOT NULL,
-    FOREIGN KEY (categoria_id) REFERENCES (categorias)
+    FOREIGN KEY (categoria_id) REFERENCES criar_categorias(id)
+);
+
+CREATE TABLE nome_categoria(
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    categoria_id INT NOT NULL,
+    produto VARCHAR(255) NOT NULL,
+    valor DOUBLE NOT NULL,
+    FOREIGN KEY (categoria_id) REFERENCES criar_categorias(id)
 );
