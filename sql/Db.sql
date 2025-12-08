@@ -26,6 +26,7 @@ CREATE TABLE conta(
     utilizador_id INT,
     FOREIGN KEY (utilizador_id) REFERENCES utilizador(id)
 );
+
 CREATE TABLE gastos(
     id INT PRIMARY KEY AUTO_INCREMENT,
     gasto VARCHAR(30) NOT NULL,
