@@ -1,159 +1,123 @@
-📂 Organização de pastas
-finance-system/
+# Finance System (backend)
 
-```bash
-│
-├── sql/
-│   ├──Db.sql
-├── src/
-│   ├── config/
-│   │   └── database.js
-│   ├── controllers/
-│   │   └── usersController.js
-│   ├── data/
-│   │   └── db.json
-│   ├── routes/
-│   │   ├── index.js
-│   │   └── users.js
-│   ├── middleware/
-│   │   ├── errorHandler.js  
-│   │   └── validateUser.js
-│   ├── utils/
-│   │   ├── db.js
-│   │   └── jsonDb.js
-│   ├── app.js
-│   └── users.test.js
-├── package.json
-└── README.md
-```
 
-src/config/ → Contém as configurações do sistema, como conexão ao banco de dados e variáveis de ambiente.
+**Layout (important files)**
 
-src/controllers/ → Armazena as funções que controlam a lógica de cada rota (ex.: criação, edição, listagem).
-
-src/models/ → Define os modelos de dados (estruturas das tabelas ou coleções do banco).
-
-src/routes/ → Contém as rotas da API, que conectam URLs aos controladores correspondentes.
-
-src/middleware/ → Guarda funções intermediárias, como autenticação e verificação de permissões.
-
-src/utils/ → Funções auxiliares e ferramentas reutilizáveis (formatação, cálculos, etc.).
-
-src/app.js → Arquivo principal da aplicação; onde o servidor e as rotas são configurados.
-
-package.json → Define dependências e scripts do projeto.
-
-README.md → Documento de descrição geral e instruções de uso do sistema.
+- `sql/Db.sql` — canonical database schema (creates `gestor_db` and tables like `utilizador`).
+- `src/config/database.js` — MySQL/MariaDB pool configuration.
+- `src/controllers/usersController.js` — user-related route handlers.
+- `src/utils/db.js` — small SQL helper used by controllers.
+- `src/middleware/validateUser.js` — request validation for user creation.
 
 ---
 
-## Como executar
+**Quick summary**
 
-### 1. Instale dependências:
+- The app expects a MariaDB / MySQL database. The default env file is at `src/environment.env`.
+- The main user table (as defined in `sql/Db.sql`) is `utilizador` and stores hashed passwords in `password`.
+
+---
+
+## Setup & Run (Linux and Windows)
+
+Step-by-step instructions for both Linux and Windows.
+
+Prerequisites:
+- Node.js (v16+ recommended) and `npm`
+- MariaDB or MySQL server (instructions below)
+
+1) Install dependencies
 
 ```bash
 npm install
 ```
 
-### 2. Configure MariaDB/MySQL
+2) Create the database and import schema
 
-Inicie o serviço MariaDB:
+Linux (Debian/Ubuntu):
+
 ```bash
-sudo systemctl start mariadb
+# install MariaDB (Debian/Ubuntu)
+sudo apt update
+sudo apt install -y mariadb-server mariadb-client
+
+# start service
+sudo systemctl enable --now mariadb
+
+# import schema (from project root)
+mariadb -u root < sql/Db.sql
 ```
 
-Crie o banco de dados e tabela:
+Linux (Fedora/CentOS/RHEL):
+
 ```bash
-mariadb -u root -e "CREATE DATABASE IF NOT EXISTS my_database;"
-mariadb -u root my_database < sql/create_tables.sql
+sudo dnf install -y mariadb-server mariadb
+sudo systemctl enable --now mariadb
+mariadb -u root < sql/Db.sql
 ```
 
-Configure as variáveis de ambiente em `src/environment.env`:
-```env
+Windows (using MariaDB installer or MySQL):
+
+```powershell
+mysql -u root -p < sql/Db.sql
+```
+
+If your root user has no password, omit `-p` and press Enter when prompted.
+
+Docker (alternative, cross-platform):
+
+```bash
+# run MariaDB in a container (example)
+docker run -d --name gestor-db -e MARIADB_ROOT_PASSWORD=rootpw -p 3306:3306 -v "$PWD/sql:/docker-entrypoint-initdb.d" mariadb:latest
+# The SQL files in /sql will be executed automatically by the container on first run
+```
+
+3) Configure environment variables
+
+For local development you can use `src/environment.env`. Example:
+
+```
 DB_HOST=localhost
 DB_USER=root
 DB_PASSWORD=
-DB_NAME=my_database
+DB_NAME=gestor_db
 ```
 
-### 3. Inicie a aplicação:
+Do NOT commit `src/environment.env` with production credentials. Use real environment variables or a secrets manager in production.
+
+4) Start the application
 
 ```bash
 npm start
 ```
 
-O servidor estará disponível em `http://localhost:3000`
+Server will be available at `http://localhost:3000` by default.
 
 ---
 
-## API Routes
+## API Quick Reference
 
-### Base URL: `/api/users`
+Base path: `/api/users`
 
-Note: the application now uses the SQL schema provided in `sql/Db.sql`. The main user table is `utilizador` and stores the hashed password in the `password` column.
+- `GET /api/users` — list all users (password hashes are omitted in the list).
+- `GET /api/users/:username` — return the full user record (includes hashed `password`).
+- `POST /api/users` — create a new user. Required JSON fields: `nome`, `apelido`, `username`, `email`, `password`, `confirmpassword`.
+- `DELETE /api/users` — delete a user by JSON body `{ "username": "..." }`.
 
-#### 1. **Listar todos os usuários**
-- **Método:** `GET /api/users`
-- **Descrição:** Retorna lista de todos os usuários (sem exibir a coluna `password`)
-- **Resposta (200):**
-```json
-[
-  {
-    "id": 1,
-    "nome": "Marcos",
-    "apelido": "Gomes",
-    "username": "maky188",
-    "email": "maky188@example.com",
-    "createdAt": "2025-12-01T10:30:00.000Z"
-  }
-]
-```
+Example: create user
 
-**cURL:**
 ```bash
-curl -X GET http://localhost:3000/api/users
+curl -i -X POST http://localhost:3000/api/users \
+  -H "Content-Type: application/json" \
+  -d '{"nome":"Leonardo","apelido":"Dionisio","username":"leo","email":"leo@example.com","password":"secret123","confirmpassword":"secret123"}'
 ```
 
-**JavaScript (fetch):**
-```javascript
-fetch('http://localhost:3000/api/users')
-  .then(res => res.json())
-  .then(users => console.log(users));
+Example: list users
+
+```bash
+curl -i http://localhost:3000/api/users
 ```
 
----
-
-#### 2. **Criar novo usuário**
-- **Método:** `POST /api/users`
-- **Descrição:** Cria um novo usuário com validação de email e senha
-- **Body (JSON):**
-```json
-{
-  "nome": "Leonardo",
-  "apelido": "Dionisio",
-  "username": "leonardo1234",
-  "email": "leo1234@example.com",
-  "password": "password123",
-  "confirmpassword": "password123"
-}
-```
-- **Validações:**
-  - `username` obrigatório
-  - `email` obrigatório e deve ser um email válido
-  - `password` obrigatório, mínimo 6 caracteres
-  - `confirmpassword` deve ser igual a `password`
-  - `username` e `email` devem ser únicos (retorna 409 se duplicado)
-
-- **Resposta (201):**
-```json
-{
-  "id": 1,
-  "nome": "Leonardo",
-  "apelido" : "Dionisio",
-  "username": "leonardo1234",
-  "email": "leo1234@example.com",
-  "createdAt": "2025-12-01T10:30:00.000Z"
-}
 ```
 
 - **Erros (400/409):**
