@@ -8,7 +8,7 @@ CREATE TABLE utilizador(
     apelido VARCHAR(255) NOT NULL,
     email VARCHAR(255) NOT NULL,
     password VARCHAR(255) NOT NULL,
-    hora_de_registo TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    data_de_registo TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE criar_categorias(
