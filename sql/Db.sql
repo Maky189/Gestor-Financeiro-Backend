@@ -1,6 +1,7 @@
 CREATE DATABASE gestor_db;
 USE gestor_db;
 
+-- Tabela de utilizadores
 CREATE TABLE utilizador(
     id INT PRIMARY KEY AUTO_INCREMENT,
     nome VARCHAR(255) NOT NULL,
@@ -11,6 +12,7 @@ CREATE TABLE utilizador(
     hora_de_registo TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Tabela de categorias
 CREATE TABLE categorias(
     id INT PRIMARY KEY AUTO_INCREMENT,  
     nome VARCHAR(30) NOT NULL,
@@ -19,6 +21,7 @@ CREATE TABLE categorias(
     FOREIGN KEY (utilizador_id) REFERENCES utilizador(id)
 );
 
+-- Tabela de contas
 CREATE TABLE conta(
     id INT PRIMARY KEY AUTO_INCREMENT,
     numero_conta VARCHAR(30) UNIQUE,
@@ -29,6 +32,7 @@ CREATE TABLE conta(
     FOREIGN KEY (utilizador_id) REFERENCES utilizador(id)
 );
 
+-- Tabela de gastos
 CREATE TABLE gastos(
     id INT PRIMARY KEY AUTO_INCREMENT,
     descricao VARCHAR(255) NOT NULL,
@@ -39,13 +43,14 @@ CREATE TABLE gastos(
     FOREIGN KEY (categoria_id) REFERENCES categorias(id)
 );
 
+-- Tabela de chaves
 CREATE TABLE chaves(
     id INT PRIMARY KEY AUTO_INCREMENT,
     chave VARCHAR(255) NOT NULL,
     gasto_id INT NOT NULL,
-    FOREIGN KEY (gasto_id) REFERENCES gastos(id),
-    conta_id INT NOT NOT,
-    FOREIGN KEY (conta_id) REFERENCES conta(id),
+    conta_id INT NOT NULL,
     categoria_id INT NOT NULL,
-    FOREIGN KEY (categoria_id) REFERENCES (categorias)
+    FOREIGN KEY (gasto_id) REFERENCES gastos(id),
+    FOREIGN KEY (conta_id) REFERENCES conta(id),
+    FOREIGN KEY (categoria_id) REFERENCES categorias(id)
 );
