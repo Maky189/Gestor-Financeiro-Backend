@@ -6,11 +6,10 @@ CREATE TABLE utilizador(
     id INT PRIMARY KEY AUTO_INCREMENT,
     nome VARCHAR(255) NOT NULL,
     username VARCHAR(255) NOT NULL,
-    endereco VARCHAR(255) NOT NULL,
-    telemovel VARCHAR(20) NOT NULL,
+    apelido VARCHAR(255) NOT NULL,
     email VARCHAR(255) NOT NULL,
     password VARCHAR(255) NOT NULL,
-    data_de_registo TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    hora_de_registo TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Tabela de categorias
@@ -18,6 +17,7 @@ CREATE TABLE categorias(
     id INT PRIMARY KEY AUTO_INCREMENT,  
     nome VARCHAR(30) NOT NULL,
     utilizador_id INT,
+    total_categoria DOUBLE DEFAULT 0.0 NOT NULL,
     FOREIGN KEY (utilizador_id) REFERENCES utilizador(id)
 );
 
@@ -27,7 +27,7 @@ CREATE TABLE conta(
     numero_conta VARCHAR(30) UNIQUE,
     saldo_atual DOUBLE,
     emprestimos DOUBLE,
-    data TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    data DATE DEFAULT (CURRENT_DATE),
     utilizador_id INT,
     FOREIGN KEY (utilizador_id) REFERENCES utilizador(id)
 );
@@ -38,7 +38,7 @@ CREATE TABLE gastos(
     descricao VARCHAR(255) NOT NULL,
     gasto VARCHAR(30) NOT NULL,
     preco DOUBLE NOT NULL,
-    data TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    data DATE DEFAULT (CURRENT_DATE),
     categoria_id INT,
     FOREIGN KEY (categoria_id) REFERENCES categorias(id)
 );
@@ -52,14 +52,5 @@ CREATE TABLE chaves(
     categoria_id INT NOT NULL,
     FOREIGN KEY (gasto_id) REFERENCES gastos(id),
     FOREIGN KEY (conta_id) REFERENCES conta(id),
-    FOREIGN KEY (categoria_id) REFERENCES categorias(id)
-);
-
--- Tabela de produtos por categoria
-CREATE TABLE produtos(
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    categoria_id INT NOT NULL,
-    produto VARCHAR(255) NOT NULL,
-    valor DOUBLE NOT NULL,
     FOREIGN KEY (categoria_id) REFERENCES categorias(id)
 );

@@ -12,7 +12,7 @@ if (fs.existsSync(process.env.TEST_DB_FILE)) {
   fs.unlinkSync(process.env.TEST_DB_FILE);
 }
 
-const app = require('../src/app');
+const app = require('./app');
 
 describe('Users API', function () {
   after(function () {
