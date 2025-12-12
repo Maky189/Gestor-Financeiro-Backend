@@ -4,10 +4,10 @@ USE gestor_db;
 -- Tabela de utilizadores
 CREATE TABLE utilizador(
     id INT PRIMARY KEY AUTO_INCREMENT,
-    nome VARCHAR(255) NOT NULL,
-    username VARCHAR(255) NOT NULL,
-    apelido VARCHAR(255) NOT NULL,
-    email VARCHAR(255) NOT NULL,
+    nome VARCHAR(255) NOT NULL UNIQUE,
+    morada VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    telemovel INT NOT NULL UNIQUE,
     password VARCHAR(255) NOT NULL,
     hora_de_registo TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -16,9 +16,11 @@ CREATE TABLE utilizador(
 CREATE TABLE categorias(
     id INT PRIMARY KEY AUTO_INCREMENT,  
     nome VARCHAR(30) NOT NULL,
+    descricao VARCHAR(255) NOT NULL,
     utilizador_id INT,
     total_categoria DOUBLE DEFAULT 0.0 NOT NULL,
     FOREIGN KEY (utilizador_id) REFERENCES utilizador(id)
+    data TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Tabela de contas
