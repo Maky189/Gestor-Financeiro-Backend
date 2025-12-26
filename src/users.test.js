@@ -23,20 +23,22 @@ describe('Users API', function () {
   it('should create a user', async function () {
     const res = await request(app)
       .post('/api/users')
-      .send({ username: 'testuser', email: 'test@example.com', password: 'secret123' })
+      .send({ nome: 'Test', apelido: 'User', username: 'testuser', email: 'test@example.com', morada: 'Somewhere 123', telefone: '123456789', password: 'secret123', confirmpassword: 'secret123' })
       .set('Accept', 'application/json');
 
     expect(res.status).to.equal(201);
     expect(res.body).to.have.property('id');
     expect(res.body).to.have.property('username', 'testuser');
     expect(res.body).to.have.property('email', 'test@example.com');
+    expect(res.body).to.have.property('morada', 'Somewhere 123');
+    expect(res.body).to.have.property('telefone', '123456789');
     expect(res.body).to.not.have.property('passwordHash');
   });
 
   it('should not create duplicate user by email', async function () {
     const res = await request(app)
       .post('/api/users')
-      .send({ username: 'another', email: 'test@example.com', password: 'secret123' })
+      .send({ nome: 'Another', apelido: 'User', username: 'another', email: 'test@example.com', morada: 'Somewhere 456', telefone: '987654321', password: 'secret123', confirmpassword: 'secret123' })
       .set('Accept', 'application/json');
 
     expect(res.status).to.equal(409);
@@ -45,7 +47,7 @@ describe('Users API', function () {
   it('should reject invalid email', async function () {
     const res = await request(app)
       .post('/api/users')
-      .send({ username: 'u2', email: 'invalid-email', password: 'secret123' })
+      .send({ nome: 'U2', apelido: 'Invalid', username: 'u2', email: 'invalid-email', morada: 'Addr', telefone: '000', password: 'secret123', confirmpassword: 'secret123' })
       .set('Accept', 'application/json');
 
     expect(res.status).to.equal(400);

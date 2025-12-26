@@ -1,52 +1,51 @@
-CREATE DATABASE gestor_db;
+CREATE DATABASE IF NOT EXISTS gestor_db;
 USE gestor_db;
 
--- Tabela de utilizadores
-CREATE TABLE utilizador(
+CREATE TABLE IF NOT EXISTS utilizador(
     id INT PRIMARY KEY AUTO_INCREMENT,
-    nome VARCHAR(255) NOT NULL UNIQUE,
+    nome VARCHAR(255) NOT NULL,
+    apelido VARCHAR(255) NOT NULL,
+    username VARCHAR (255) NOT NULL,
     morada VARCHAR(255) NOT NULL,
     email VARCHAR(255) NOT NULL UNIQUE,
-    telemovel INT NOT NULL UNIQUE,
+    telefone VARCHAR(255) NOT NULL,
     password VARCHAR(255) NOT NULL,
     hora_de_registo TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Tabela de categorias
-CREATE TABLE categorias(
-    id INT PRIMARY KEY AUTO_INCREMENT,  
+CREATE TABLE IF NOT EXISTS categorias(
+    id INT PRIMARY KEY AUTO_INCREMENT,
     nome VARCHAR(30) NOT NULL,
     descricao VARCHAR(255) NOT NULL,
     utilizador_id INT,
     total_categoria DOUBLE DEFAULT 0.0 NOT NULL,
-    FOREIGN KEY (utilizador_id) REFERENCES utilizador(id)
+    FOREIGN KEY (utilizador_id) REFERENCES utilizador(id),
     data TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Tabela de contas
-CREATE TABLE conta(
+
+CREATE TABLE IF NOT EXISTS conta(
     id INT PRIMARY KEY AUTO_INCREMENT,
     numero_conta VARCHAR(30) UNIQUE,
     saldo_atual DOUBLE,
-    emprestimos DOUBLE,
     data DATE DEFAULT (CURRENT_DATE),
     utilizador_id INT,
     FOREIGN KEY (utilizador_id) REFERENCES utilizador(id)
 );
 
--- Tabela de gastos
-CREATE TABLE gastos(
+
+CREATE TABLE IF NOT EXISTS gastos(
     id INT PRIMARY KEY AUTO_INCREMENT,
     descricao VARCHAR(255) NOT NULL,
-    gasto VARCHAR(30) NOT NULL,
+    nome VARCHAR(30) NOT NULL,
     preco DOUBLE NOT NULL,
     data DATE DEFAULT (CURRENT_DATE),
     categoria_id INT,
     FOREIGN KEY (categoria_id) REFERENCES categorias(id)
 );
 
--- Tabela de chaves
-CREATE TABLE chaves(
+
+CREATE TABLE IF NOT EXISTS chaves(
     id INT PRIMARY KEY AUTO_INCREMENT,
     chave VARCHAR(255) NOT NULL,
     gasto_id INT NOT NULL,
