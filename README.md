@@ -34,7 +34,7 @@ sudo systemctl enable --now docker
 2) From project root start the app:
 
 ```bash
-docker-compose up -d
+docker compose up --build backend
 ```
 
 3) Useful commands:
@@ -69,7 +69,7 @@ docker-compose down -v
 2) Open PowerShell in the project folder and run:
 
 ```powershell
-docker-compose up -d
+docker compose up --build backend
 ```
 
 ## API Quick Reference
