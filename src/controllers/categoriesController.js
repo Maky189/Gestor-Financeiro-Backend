@@ -15,21 +15,20 @@ async function getAllCategories(req, res, next) {
 // Create a new category
 async function createCategory(req, res, next) {
   try {
-    const { nome, utilizador_id } = req.bady;
-    if (!nome || !utilizador_id) {
+    const { nome, utilizador_id } = req.body;
+    if (nome == null || !utilizador_id) {
       return res
         .status(400)
         .json({ success: false, error: "Required fields are missing" });
     }
+
     const payload = { nome, utilizador_id };
     const result = await db.insert(COLLECTION, payload);
-    return res
-      .status(201)
-      .json({
-        success: true,
-        data: result,
-        message: "Category created successfully",
-      });
+    return res.status(201).json({
+      success: true,
+      data: result,
+      message: "Category created successfully",
+    });
   } catch (error) {
     console.error("Failed to create category:", error);
     next(error);
@@ -41,7 +40,7 @@ async function updateCategory(req, res, next) {
   try {
     const { nome, utilizador_id } = req.body;
     const { id } = req.params;
-    if (!id) {
+    if (id == null) {
       return res
         .status(400)
         .json({ success: false, error: "Category ID is required." });
@@ -51,12 +50,10 @@ async function updateCategory(req, res, next) {
     if (utilizador_id !== undefined) payload.utilizador_id = utilizador_id;
 
     if (Object.keys(payload).length === 0) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          error: "At least one field must be provided for update.",
-        });
+      return res.status(400).json({
+        success: false,
+        error: "At least one field must be provided for update.",
+      });
     }
 
     const result = await db.update(COLLECTION, id, payload);
@@ -82,7 +79,7 @@ async function updateCategory(req, res, next) {
 async function deleteCategory(req, res, next) {
   try {
     const { id } = req.params;
-    if (!id) {
+    if (id == null) {
       return res
         .status(400)
         .json({ success: false, error: "Category ID is required." });

@@ -17,7 +17,7 @@ async function createExpenses(req, res, next) {
   try {
     const { descricao, gasto, preco, data, categoria_id } = req.body;
 
-    if (!descricao || !gasto || !categoria_id) {
+    if (descricao == null || gasto == null || categoria_id == null) {
       return res.status(400).json({
         success: false,
         error: "Required fields are missing.",
@@ -54,7 +54,7 @@ async function updateExpenses(req, res, next) {
     const { descricao, gasto, preco, data, categoria_id } = req.body;
     const { id } = req.params;
 
-    if (!id) {
+    if (id == null) {
       return res.status(400).json({
         success: false,
         error: "Expenses ID is required.",
@@ -101,7 +101,7 @@ async function deleteExpenses(req, res, next) {
   try {
     const { id } = req.params;
 
-    if (!id) {
+    if (id == null) {
       return res.status(400).json({
         success: false,
         error: "Expenses ID is required.",
