@@ -1,5 +1,7 @@
+const pool = require("../config/database");
 const db = require("../utils/db");
 const COLLECTION = "categorias";
+const USERS = "utilizador";
 
 // Get all categories
 async function getAllCategories(req, res, next) {
@@ -14,15 +16,22 @@ async function getAllCategories(req, res, next) {
 
 // Create a new category
 async function createCategory(req, res, next) {
+  const { nome, descricao, utilizador_id } = req.body;
+  if (!nome || !descricao || !utilizador_id) {
+    return res
+      .status(400)
+      .json({ success: false, error: "Required fields are missing" });
+  }
+
   try {
-    const { nome, utilizador_id } = req.body;
-    if (nome == null || !utilizador_id) {
+    const userExists = await db.getByField(USERS, "id", utilizador_id);
+    if (!userExists) {
       return res
         .status(400)
-        .json({ success: false, error: "Required fields are missing" });
+        .json({ success: false, error: "User does not exist" });
     }
 
-    const payload = { nome, utilizador_id };
+    const payload = { nome, descricao, utilizador_id };
     const result = await db.insert(COLLECTION, payload);
     return res.status(201).json({
       success: true,
@@ -37,17 +46,27 @@ async function createCategory(req, res, next) {
 
 // Update an existing category
 async function updateCategory(req, res, next) {
+  const { id } = req.params;
+  const { nome, descricao, utilizador_id } = req.body;
+  if (!id) {
+    return res
+      .status(400)
+      .json({ success: false, error: "Category ID is required." });
+  }
+
   try {
-    const { nome, utilizador_id } = req.body;
-    const { id } = req.params;
-    if (id == null) {
-      return res
-        .status(400)
-        .json({ success: false, error: "Category ID is required." });
-    }
     const payload = {};
     if (nome !== undefined) payload.nome = nome;
-    if (utilizador_id !== undefined) payload.utilizador_id = utilizador_id;
+    if (descricao !== undefined) payload.descricao = descricao;
+    if (utilizador_id !== undefined) {
+      const userExists = await db.getByField(USERS, "id", utilizador_id);
+      if (!userExists) {
+        return res
+          .status(400)
+          .json({ success: false, error: "User does not exist" });
+      }
+      payload.utilizador_id = utilizador_id;
+    }
 
     if (Object.keys(payload).length === 0) {
       return res.status(400).json({
@@ -77,24 +96,39 @@ async function updateCategory(req, res, next) {
 
 // Delete a category
 async function deleteCategory(req, res, next) {
-  try {
-    const { id } = req.params;
-    if (id == null) {
-      return res
-        .status(400)
-        .json({ success: false, error: "Category ID is required." });
-    }
-    const result = await db.remove(COLLECTION, id);
+  const { id } = req.params;
+  if (!id) {
+    return res
+      .status(400)
+      .json({ success: false, error: "Category ID is required." });
+  }
 
-    if (!result || result.affectedRows === 0) {
+  try {
+    const category = await db.getById(COLLECTION, id);
+    if (!category) {
+      console.warn(`Attempter to delete non-existing category: ${id}`);
       return res
         .status(404)
         .json({ success: false, error: "Category not found." });
     }
 
+    const [gastos] = await pool.query(
+      "SELECT 1 FROM gastos WHERE categoria_id = ? LIMIT 1",
+      [id]
+    );
+    if (gastos.length > 0) {
+      return res.status(409).json({
+        success: false,
+        message: "This category has associated expenses and cannot be deleted.",
+        data: category,
+      });
+    }
+
+    await db.remove(COLLECTION, id);
     return res.json({
       success: true,
       message: "Category deleted successfully.",
+      data: category,
     });
   } catch (err) {
     console.error("Error deleting category: ", err);

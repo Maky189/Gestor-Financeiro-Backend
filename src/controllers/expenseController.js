@@ -1,5 +1,6 @@
 const db = require("../utils/db");
 const COLLECTION = "gastos";
+const CATEGORIES = "categorias";
 
 // Get all expenses
 async function getAllExpenses(req, res, next) {
@@ -14,13 +15,20 @@ async function getAllExpenses(req, res, next) {
 
 // Create a new expense
 async function createExpenses(req, res, next) {
-  try {
-    const { descricao, gasto, preco, data, categoria_id } = req.body;
+  const { descricao, nome, preco, data, categoria_id } = req.body;
+  if (!descricao || !nome || !preco || !categoria_id) {
+    return res.status(400).json({
+      success: false,
+      error: "Required fields are missing.",
+    });
+  }
 
-    if (descricao == null || gasto == null || categoria_id == null) {
+  try {
+    const categoriaBD = await db.getByField("categorias", "id", categoria_id);
+    if (!categoriaBD) {
       return res.status(400).json({
         success: false,
-        error: "Required fields are missing.",
+        error: "Category does not exist.",
       });
     }
 
@@ -29,10 +37,10 @@ async function createExpenses(req, res, next) {
 
     const payload = {
       descricao,
-      gasto,
+      nome,
       preco,
-      data: data_formatada,
-      categoria_id,
+      data: data || new Date().toISOString().slice(0, 10),
+      categoria_id: categoriaBD.id,
     };
 
     const result = await db.insert(COLLECTION, payload);
@@ -50,24 +58,31 @@ async function createExpenses(req, res, next) {
 
 // Update existing expense
 async function updateExpenses(req, res, next) {
+  const { descricao, nome, preco, data, categoria_id } = req.body;
+  const { id } = req.params;
+  if (!id) {
+    return res.status(400).json({
+      success: false,
+      error: "Expenses ID is required.",
+    });
+  }
+
   try {
-    const { descricao, gasto, preco, data, categoria_id } = req.body;
-    const { id } = req.params;
-
-    if (id == null) {
-      return res.status(400).json({
-        success: false,
-        error: "Expenses ID is required.",
-      });
-    }
-
-    // Payload seguro (evita gravar NULL acidentalmente)
     const payload = {};
     if (descricao !== undefined) payload.descricao = descricao;
-    if (gasto !== undefined) payload.gasto = gasto;
+    if (nome !== undefined) payload.nome = nome;
     if (preco !== undefined) payload.preco = preco;
     if (data !== undefined) payload.data = data;
-    if (categoria_id !== undefined) payload.categoria_id = categoria_id;
+    if (categoria !== undefined) {
+      const cat = await db.getByField("categorias", "nome", categoria);
+      if (!cat) {
+        return res.status(400).json({
+          success: false,
+          error: "Category does not exist.",
+        });
+      }
+      payload.categoria_id = cat.id;
+    }
 
     if (Object.keys(payload).length === 0) {
       return res.status(400).json({
@@ -98,22 +113,37 @@ async function updateExpenses(req, res, next) {
 
 // Delete an expense
 async function deleteExpenses(req, res, next) {
-  try {
-    const { id } = req.params;
+  const { id } = req.params;
 
-    if (id == null) {
+  if (!id) {
+    return res.status(400).json({
+      success: false,
+      error: "Expenses ID is required.",
+    });
+  }
+
+  try {
+    const expense = await db.getById(COLLECTION, id);
+    if (!expense) {
+      return res.status(404).json({
+        success: false,
+        error: "Expenses not found.",
+      });
+    }
+
+    const hasDependencies = await checkDependencies(id);
+    if (hasDependencies) {
       return res.status(400).json({
         success: false,
-        error: "Expenses ID is required.",
+        error: "Cannot delete expense with associated records.",
       });
     }
 
     const result = await db.remove(COLLECTION, id);
-
-    if (!result || result.affectedRows === 0) {
-      return res.status(404).json({
+    if (!result) {
+      return res.status(400).json({
         success: false,
-        error: "Expenses not found.",
+        error: "Failed to delete expenses.",
       });
     }
 
