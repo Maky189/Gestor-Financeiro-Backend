@@ -13,87 +13,64 @@
 
 **Quick summary**
 
-- The app expects a MariaDB / MySQL database. The default env file is at `src/environment.env`.
+- The app expects a MariaDB / MySQL database. Environment variables are loaded from a `.env`. Do not commit `.env` files with secrets; 
+Docker can inject variables automatically.
 - The main user table (as defined in `sql/Db.sql`) is `utilizador` and stores hashed passwords in `password`.
 
 ---
 
-## Setup & Run (Linux and Windows)
+## Running with Docker (Linux)
 
-Step-by-step instructions for both Linux and Windows.
+This project is distributed to run inside Docker using `docker-compose`. The `db` service will initialize the database from the `./sql` folder on first run.
 
-Prerequisites:
-- Node.js (v16+ recommended) and `npm`
-- MariaDB or MySQL server (instructions below)
-
-1) Install dependencies
+1) Install Docker & Docker Compose (example for Debian/Ubuntu):
 
 ```bash
-npm install
-```
-
-2) Create the database and import schema
-
-Linux (Debian/Ubuntu):
-
-```bash
-# install MariaDB (Debian/Ubuntu)
 sudo apt update
-sudo apt install -y mariadb-server mariadb-client
-
-# start service
-sudo systemctl enable --now mariadb
-
-# import schema (from project root)
-mariadb -u root < sql/Db.sql
+sudo apt install -y docker.io docker-compose
+sudo systemctl enable --now docker
 ```
 
-Linux (Fedora/CentOS/RHEL):
+2) From project root start the app:
 
 ```bash
-sudo dnf install -y mariadb-server mariadb
-sudo systemctl enable --now mariadb
-mariadb -u root < sql/Db.sql
+docker compose up --build backend
 ```
 
-Windows (using MariaDB installer or MySQL):
-
-```powershell
-mysql -u root -p < sql/Db.sql
-```
-
-If your root user has no password, omit `-p` and press Enter when prompted.
-
-Docker (alternative, cross-platform):
+3) Useful commands:
 
 ```bash
-# run MariaDB in a container (example)
-docker run -d --name gestor-db -e MARIADB_ROOT_PASSWORD=rootpw -p 3306:3306 -v "$PWD/sql:/docker-entrypoint-initdb.d" mariadb:latest
-# The SQL files in /sql will be executed automatically by the container on first run
+# show containers
+docker ps
+
+# view logs
+docker-compose logs -f backend
+docker-compose logs -f db
+
+# restart services
+docker-compose restart
+
+# stop containers but keep data
+docker-compose stop
+
+# start stopped containers
+docker-compose start
+
+# stop and remove containers + named volumes (clean start)
+docker-compose down -v
 ```
-
-3) Configure environment variables
-
-For local development you can use `src/environment.env`. Example:
-
-```
-DB_HOST=localhost
-DB_USER=root
-DB_PASSWORD=
-DB_NAME=gestor_db
-```
-
-Do NOT commit `src/environment.env` with production credentials. Use real environment variables or a secrets manager in production.
-
-4) Start the application
-
-```bash
-npm start
-```
-
-Server will be available at `http://localhost:3000` by default.
 
 ---
+
+## Running with Docker (Windows)
+
+1) Install Docker Desktop for Windows and start Docker Desktop.
+
+2) Open PowerShell in the project folder and run:
+
+```powershell
+docker compose up --build backend
+```
 
 ## API Quick Reference
 
@@ -101,7 +78,7 @@ Base path: `/api/users`
 
 - `GET /api/users` — list all users (password hashes are omitted in the list).
 - `GET /api/users/:username` — return the full user record (includes hashed `password`).
-- `POST /api/users` — create a new user. Required JSON fields: `nome`, `apelido`, `username`, `email`, `password`, `confirmpassword`.
+- `POST /api/users` — create a new user. Required JSON fields: `nome`, `apelido`, `username`, `email`, `morada`, `telefone`, `password`, `confirmpassword`.
 - `DELETE /api/users` — delete a user by JSON body `{ "username": "..." }`.
 
 Example: create user
@@ -109,7 +86,7 @@ Example: create user
 ```bash
 curl -i -X POST http://localhost:3000/api/users \
   -H "Content-Type: application/json" \
-  -d '{"nome":"Leonardo","apelido":"Dionisio","username":"leo","email":"leo@example.com","password":"secret123","confirmpassword":"secret123"}'
+  -d '{"nome":"Leonardo","apelido":"Dionisio","username":"leo","email":"leo@example.com","morada":"Rua X, 123","telefone":"912345678","password":"secret123","confirmpassword":"secret123"}'
 ```
 
 Example: list users
@@ -163,7 +140,6 @@ fetch('http://localhost:3000/api/users', {
   .then(user => console.log(user));
 ```
 
----
 
 #### 3. **Obter usuário (inclui senha hashed)**
 - **Método:** `GET /api/users/:username`
@@ -287,50 +263,23 @@ curl -X POST http://localhost:3000/api/users \
 CREATE TABLE utilizador(
     id INT PRIMARY KEY AUTO_INCREMENT,
     nome VARCHAR(255) NOT NULL,
-    username VARCHAR(255) NOT NULL,
-    apelido VARCHAR(255)NOT NULL,
-    email VARCHAR(255)NOT NULL,
-    password VARCHAR(255)NOT NULL,
+    apelido VARCHAR(255) NOT NULL,
+    username VARCHAR (255) NOT NULL,
+    morada VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    telefone VARCHAR(255) NOT NULL,
+    password VARCHAR(255) NOT NULL,
     hora_de_registo TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 ```
 
 ### Variáveis de Ambiente
 
-Configure em `src/environment.env`:
+Configure in a root `.env` file or via environment variables:
 ```env
-DB_HOST=localhost          # Host do MariaDB
-DB_USER=root               # Usuário do MariaDB
-DB_PASSWORD=               # Senha (deixe em branco se usar socket auth)
-DB_NAME=gestorDB           # Nome do banco de dados
-PORT=3000                  # Porta da aplicação (opcional)
-```
-
----
-
-## Troubleshooting
-
-### MariaDB não conecta
-1. Verifique se o serviço está rodando:
-   ```bash
-   sudo systemctl status mariadb
-   ```
-
-2. Inicie o serviço:
-   ```bash
-   sudo systemctl start mariadb
-   ```
-
-3. Verifique as credenciais em `src/environment.env`
-
-### Erro "Table 'users' doesn't exist"
-Execute o script SQL:
-```bash
-mariadb -u root my_database < sql/DB.sql
-```
-
-### Porta 3000 já em uso
-Mude a porta:
-```bash
-PORT=3001 npm start
+DB_HOST=db
+DB_USER=root
+DB_PASSWORD=root
+DB_NAME=gestor_db
+PORT=3000
 ```
