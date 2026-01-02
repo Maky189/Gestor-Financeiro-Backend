@@ -6,7 +6,7 @@ const CATEGORIES = "categorias";
 async function getAllExpenses(req, res, next) {
   try {
     const expenses = await db.getAll(COLLECTION);
-    return res.json({ success: true, data: expenses });
+    return res.json(expenses);
   } catch (err) {
     console.error("Failed to list expenses: ", err);
     next(err);
@@ -15,8 +15,8 @@ async function getAllExpenses(req, res, next) {
 
 // Create a new expense
 async function createExpenses(req, res, next) {
-  const { descricao, nome, preco, data, categoria_id } = req.body;
-  if (!descricao || !nome || !preco || !categoria_id) {
+  const { descricao, nome, preco, data, categoria, categoria_id } = req.body;
+  if (!descricao || !nome || !preco || (!categoria && !categoria_id)) {
     return res.status(400).json({
       success: false,
       error: "Required fields are missing.",
@@ -24,16 +24,19 @@ async function createExpenses(req, res, next) {
   }
 
   try {
-    const categoriaBD = await db.getByField("categorias", "id", categoria_id);
+    let categoriaBD = null;
+    if (categoria) {
+      categoriaBD = await db.getByField("categorias", "nome", categoria);
+    } else {
+      categoriaBD = await db.getByField("categorias", "id", categoria_id);
+    }
+
     if (!categoriaBD) {
       return res.status(400).json({
         success: false,
         error: "Category does not exist.",
       });
     }
-
-    const now = new Date();
-    const data_formatada = data ? data : now.toISOString().slice(0, 10);
 
     const payload = {
       descricao,
@@ -45,11 +48,7 @@ async function createExpenses(req, res, next) {
 
     const result = await db.insert(COLLECTION, payload);
 
-    return res.status(201).json({
-      success: true,
-      data: result,
-      message: "Expense created successfully.",
-    });
+    return res.status(201).json(result);
   } catch (err) {
     console.error("Error creating expenses: ", err);
     next(err);
@@ -58,7 +57,7 @@ async function createExpenses(req, res, next) {
 
 // Update existing expense
 async function updateExpenses(req, res, next) {
-  const { descricao, nome, preco, data, categoria_id } = req.body;
+  const { descricao, nome, preco, data, categoria } = req.body;
   const { id } = req.params;
   if (!id) {
     return res.status(400).json({

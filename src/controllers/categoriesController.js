@@ -7,7 +7,7 @@ const USERS = "utilizador";
 async function getAllCategories(req, res, next) {
   try {
     const categories = await db.getAll(COLLECTION);
-    return res.json({ success: true, data: categories });
+    return res.json(categories);
   } catch (error) {
     console.error("Failed to list categories:", error);
     next(error);
@@ -16,28 +16,45 @@ async function getAllCategories(req, res, next) {
 
 // Create a new category
 async function createCategory(req, res, next) {
-  const { nome, descricao, utilizador_id } = req.body;
-  if (!nome || !descricao || !utilizador_id) {
+  const { nome, descricao, username } = req.body;
+  if (!nome || !descricao || !username) {
     return res
       .status(400)
       .json({ success: false, error: "Required fields are missing" });
   }
 
   try {
-    const userExists = await db.getByField(USERS, "id", utilizador_id);
-    if (!userExists) {
+    const user = await db.getByField(USERS, "username", username);
+    if (!user) {
       return res
         .status(400)
         .json({ success: false, error: "User does not exist" });
     }
 
+    const utilizador_id = user.id;
+    
+    const allCategories = await db.getAll(COLLECTION);
+    const duplicate = allCategories.some((c) => {
+      if (!c) return false;
+      const sameName =
+        typeof c.nome === 'string' && typeof nome === 'string'
+          ? c.nome.toLowerCase() === nome.toLowerCase()
+          : c.nome === nome;
+      return (
+        sameName && String(c.utilizador_id) === String(utilizador_id)
+      );
+    });
+
+    if (duplicate) {
+      return res.status(409).json({
+        success: false,
+        error: "Category already exists for this user.",
+      });
+    }
+
     const payload = { nome, descricao, utilizador_id };
     const result = await db.insert(COLLECTION, payload);
-    return res.status(201).json({
-      success: true,
-      data: result,
-      message: "Category created successfully",
-    });
+    return res.status(201).json(result);
   } catch (error) {
     console.error("Failed to create category:", error);
     next(error);

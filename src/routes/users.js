@@ -6,7 +6,7 @@ const router = express.Router();
 
 router.get('/', ctrl.list);
 
-//router.post('/login', ctrl.create);
+router.post('/login', ctrl.login);
 
 router.post('/', validateCreate, ctrl.create);
 

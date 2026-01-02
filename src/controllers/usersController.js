@@ -55,6 +55,25 @@ async function create(req, res, next) {
   }
 }
 
+async function login(req, res, next) {
+  try {
+    const email = req.body && req.body.email ? String(req.body.email).trim().toLowerCase() : '';
+    const password = req.body && req.body.password ? String(req.body.password) : '';
+    if (!email || !password) return res.status(400).json({ error: 'email and password required' });
+
+    const found = await db.getByField(COLLECTION, 'email', email);
+    if (!found) return res.status(404).json({ ok: false, error: 'Not found' });
+
+    const match = await bcrypt.compare(password, found.password);
+    if (!match) return res.status(401).json({ error: 'invalid credentials' });
+
+    const { password: _pw, ...safe } = found;
+    return res.json(safe);
+  } catch (err) {
+    next(err);
+  }
+}
+
 async function check(req, res, next) {
   try {
     const username = req.params.username;
@@ -86,4 +105,4 @@ async function remove(req, res, next) {
   }
 }
 
-module.exports = { list, create, check, remove };
+module.exports = { list, create, check, remove, login };
