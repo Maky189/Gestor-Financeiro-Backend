@@ -32,6 +32,10 @@ describe('Users API', function () {
     expect(res.body).to.have.property('email', 'test@example.com');
     expect(res.body).to.have.property('morada', 'Somewhere 123');
     expect(res.body).to.have.property('telefone', '123456789');
+    // should set a session cookie so the user is logged in
+    expect(res.headers).to.have.property('set-cookie');
+    const cookies = res.headers['set-cookie'].join('\n');
+    expect(cookies).to.match(/connect.sid/);
     expect(res.body).to.not.have.property('passwordHash');
   });
 
@@ -61,6 +65,10 @@ describe('Users API', function () {
 
     expect(res.status).to.equal(200);
     expect(res.body).to.have.property('email', 'test@example.com');
+    // should set a session cookie so the user is logged in
+    expect(res.headers).to.have.property('set-cookie');
+    const cookies = res.headers['set-cookie'].join('\n');
+    expect(cookies).to.match(/connect.sid/);
     expect(res.body).to.not.have.property('passwordHash');
   });
 
@@ -71,5 +79,29 @@ describe('Users API', function () {
       .set('Accept', 'application/json');
 
     expect(res.status).to.equal(401);
+  });
+
+  it('session persists and /me returns current user, and logout destroys session', async function () {
+    const agent = request.agent(app);
+
+    // signup with agent so cookie is kept
+    const createRes = await agent
+      .post('/api/users')
+      .send({ nome: 'Sess', apelido: 'User', username: 'sessuser', email: 'sess@example.com', morada: 'Addr', telefone: '000', password: 'pass123', confirmpassword: 'pass123' })
+      .set('Accept', 'application/json');
+    expect(createRes.status).to.equal(201);
+
+    // call /me with same agent — should return the user from session
+    const me = await agent.get('/api/users/me');
+    expect(me.status).to.equal(200);
+    expect(me.body).to.have.property('email', 'sess@example.com');
+
+    // logout
+    const out = await agent.post('/api/users/logout');
+    expect(out.status).to.equal(200);
+
+    // /me should now be unauthorized
+    const me2 = await agent.get('/api/users/me');
+    expect(me2.status).to.equal(401);
   });
 });

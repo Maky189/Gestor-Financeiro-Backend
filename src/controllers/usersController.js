@@ -49,6 +49,10 @@ async function create(req, res, next) {
     const record = await db.insert(COLLECTION, payload);
 
     const { password: _pw, ...safe } = record;
+    // establish session so user is logged in after registration
+    if (req.session) {
+      req.session.user = { id: record.id, username: record.username, email: record.email };
+    }
     res.status(201).json(safe);
   } catch (err) {
     next(err);
@@ -68,6 +72,10 @@ async function login(req, res, next) {
     if (!match) return res.status(401).json({ error: 'invalid credentials' });
 
     const { password: _pw, ...safe } = found;
+    // set session so user is considered logged in
+    if (req.session) {
+      req.session.user = { id: found.id, username: found.username, email: found.email };
+    }
     return res.json(safe);
   } catch (err) {
     next(err);
@@ -106,3 +114,34 @@ async function remove(req, res, next) {
 }
 
 module.exports = { list, create, check, remove, login };
+
+async function me(req, res, next) {
+  try {
+    if (req.session && req.session.user) {
+      return res.json(req.session.user);
+    }
+    return res.status(401).json({ error: 'unauthorized' });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function logout(req, res, next) {
+  try {
+    if (req.session) {
+      req.session.destroy((err) => {
+        if (err) return next(err);
+        // clear cookie (client will remove it)
+        res.clearCookie(process.env.SESSION_NAME || 'connect.sid');
+        return res.json({ ok: true });
+      });
+    } else {
+      return res.json({ ok: true });
+    }
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { list, create, check, remove, login, me, logout };
+

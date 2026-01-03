@@ -3,6 +3,7 @@ require('dotenv').config();
 
 
 const express = require('express');
+const session = require('express-session');
 const morgan = require('morgan');
 const cors = require('cors');
 const routes = require('./routes');
@@ -13,6 +14,18 @@ const app = express();
 app.use(morgan('dev'));
 app.use(cors());
 app.use(express.json());
+
+// session middleware (uses in-memory store by default — replace in production)
+app.use(session({
+	name: process.env.SESSION_NAME || 'connect.sid',
+	secret: process.env.SESSION_SECRET || 'secret-session',
+	resave: false,
+	saveUninitialized: false,
+	cookie: {
+		httpOnly: true,
+		maxAge: 1000 * 60 * 60 // 1 hour
+	}
+}));
 
 app.get('/api', (req, res) => res.json({ status: 'ok', env: process.env.NODE_ENV || 'development', api: true }));
 
