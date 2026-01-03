@@ -1,13 +1,15 @@
 # Finance System (backend)
 
-
 **Layout (important files)**
 
 - `sql/Db.sql` — canonical database schema (creates `gestor_db` and tables like `utilizador`).
 - `src/config/database.js` — MySQL/MariaDB pool configuration.
-- `src/controllers/usersController.js` — user-related route handlers.
+- `src/controllers/usersController.js` — user-related route handlers (register/login/me/logout).
+- `src/controllers/categoriesController.js` — categories CRUD handlers.
+- `src/controllers/expenseController.js` — expense (spendings) CRUD handlers.
 - `src/utils/db.js` — small SQL helper used by controllers.
 - `src/middleware/validateUser.js` — request validation for user creation.
+- `src/middleware/ensureAuth.js` — session-based protection middleware (protects routes requiring login).
 
 ---
 
@@ -74,14 +76,43 @@ docker compose up --build backend
 
 ## API Quick Reference
 
-Base path: `/api/users`
+Base path: `/api`
 
-- `GET /api/users` — list all users (password hashes are omitted in the list).
-- `GET /api/users/:username` — return the full user record (includes hashed `password`).
-- `POST /api/users` — create a new user. Required JSON fields: `nome`, `apelido`, `username`, `email`, `morada`, `telefone`, `password`, `confirmpassword`.
-- `DELETE /api/users` — delete a user by JSON body `{ "username": "..." }`.
+### Users (`/api/users`)
 
-Example: create user
+- `POST /api/users` — Create a new user (public). Required JSON fields:
+  - `nome` (string)
+  - `apelido` (string)
+  - `username` (string)
+  - `email` (string)
+  - `morada` (string)
+  - `telefone` (string)
+  - `password` (string)
+  - `confirmpassword` (string)
+
+  On success this endpoint returns the created user (without the password) and sets a session cookie so the user is logged in immediately.
+
+- `POST /api/users/login` — Login (public). Required JSON fields: **`username`** and **`password`**. On success returns the user (without password) and sets the session cookie.
+
+- `GET /api/users/me` — Return current logged-in user (protected; requires session cookie).
+
+- `GET /api/users` — List all users (protected; requires session cookie). Password hashes are omitted in the list response.
+
+- `GET /api/users/:username` — Return the full user record for `username` (protected). The returned record may include the hashed password in the `password` field — use with care.
+
+- `POST /api/users/logout` — Logout / destroy session (protected).
+
+- `DELETE /api/users` — Delete a user by JSON body `{ "username": "..." }` (protected).
+
+**Common errors / validation**
+
+- 400 Bad Request: missing or invalid fields (e.g. `nome required`, `username required`, `invalid email`, `morada required`, `telefone required`, `password must be at least 6 characters`, `passwords do not match`).
+- 409 Conflict: `user already exists` when `username` or `email` is duplicated.
+- 401 Unauthorized: `{ "error": "unauthorized" }` when calling a protected route without a valid session.
+
+**cURL: register & login example**
+
+Register (creates session):
 
 ```bash
 curl -i -X POST http://localhost:3000/api/users \
@@ -89,13 +120,88 @@ curl -i -X POST http://localhost:3000/api/users \
   -d '{"nome":"Leonardo","apelido":"Dionisio","username":"leo","email":"leo@example.com","morada":"Rua X, 123","telefone":"912345678","password":"secret123","confirmpassword":"secret123"}'
 ```
 
-Example: list users
+Login (returns Set-Cookie):
 
 ```bash
-curl -i http://localhost:3000/api/users
+curl -i -X POST http://localhost:3000/api/users/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"leo","password":"secret123"}'
 ```
 
+Using cookie for subsequent requests (example with `curl` using cookie jar):
+
+```bash
+# log in and save cookie
+curl -c cookiejar -X POST http://localhost:3000/api/users/login -H "Content-Type: application/json" -d '{"username":"leo","password":"secret123"}'
+
+# use saved cookie for protected request
+curl -b cookiejar http://localhost:3000/api/users/me
 ```
+
+---
+
+### Categories (`/api/categories`) — Protected
+
+All categories routes require an authenticated session (session cookie).
+
+- `GET /api/categories` — Get all categories for the logged-in user.
+- `POST /api/categories` — Create a new category.
+- `PUT /api/categories/:id` — Update an existing category.
+- `DELETE /api/categories/:id` — Delete a category.
+
+
+### Spendings / Expenses (`/api/spendings`) — Protected
+
+All spendings routes require an authenticated session (session cookie).
+
+- `GET /api/spendings` — Get all expenses for the logged-in user.
+- `POST /api/spendings` — Create a new expense.
+- `PUT /api/spendings/:id` — Update an existing expense.
+- `DELETE /api/spendings/:id` — Delete an expense.
+
+---
+
+## Manual testing tips (Postman / curl)
+
+- Registration and login set a session cookie (default name `connect.sid`). Capture that cookie and include it in requests to protected endpoints.
+- Use Postman to store cookies automatically (or use `curl -c/-b cookiejar`).
+- Verify `/api/users/me` returns the current session user. After `POST /api/users/logout` the session is destroyed and protected endpoints should return 401.
+
+---
+
+## Database (MariaDB)
+
+### Table `utilizador`
+
+```sql
+CREATE TABLE utilizador(
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    nome VARCHAR(255) NOT NULL,
+    apelido VARCHAR(255) NOT NULL,
+    username VARCHAR (255) NOT NULL,
+    morada VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    telefone VARCHAR(255) NOT NULL,
+    password VARCHAR(255) NOT NULL,
+    hora_de_registo TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+### Environment variables
+
+Configure in a root `.env` file or via environment variables:
+
+```env
+DB_HOST=db
+DB_USER=root
+DB_PASSWORD=root
+DB_NAME=gestor_db
+PORT=3000
+SESSION_NAME=connect.sid
+SESSION_SECRET=changeme
+```
+
+---
 
 - **Erros (400/409):**
 ```json

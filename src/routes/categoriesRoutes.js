@@ -4,7 +4,6 @@ const ensureAuth = require('../middleware/ensureAuth');
 
 const categoriesController = require("../controllers/categoriesController");
 
-// protect all category routes
 router.use(ensureAuth);
 
 // Route to get all categories
