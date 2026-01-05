@@ -49,6 +49,14 @@ async function create(req, res, next) {
     const record = await db.insert(COLLECTION, payload);
 
     const { password: _pw, ...safe } = record;
+    try {
+      const numero_conta = String(Math.floor(10000000 + Math.random() * 90000000));
+      const contaPayload = { numero_conta, saldo_atual: 1000, utilizador_id: record.id };
+      await db.insert('conta', contaPayload);
+    } catch (e) {
+      console.error('Failed to create default account for user', e);
+    }
+
     // establish session so user is logged in after registration
     if (req.session) {
       req.session.user = { id: record.id, username: record.username, email: record.email };

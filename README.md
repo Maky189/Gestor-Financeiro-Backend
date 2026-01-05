@@ -140,24 +140,40 @@ curl -b cookiejar http://localhost:3000/api/users/me
 
 ---
 
-### Categories (`/api/categories`) — Protected
+### Accounts (`/api/account`) — Protected
 
-All categories routes require an authenticated session (session cookie).
+- `GET /api/account` — Returns the current logged-in user's account record (protected).
+
+Note: When a new user registers, the system automatically creates a `conta` for them with:
+- `numero_conta`: a randomly generated 8-digit string
+- `saldo_atual`: starting balance of **1000**
+
+All account records are linked by `utilizador_id` to the owning user.
+
+### Account and balance behavior
+- When a user creates an expense, the user's account `saldo_atual` is automatically decremented by the expense `preco`.
+- Each category's `total_categoria` tracks the sum of all expenses assigned to that category; creating/updating/deleting expenses will automatically adjust this total.
+- Expense creation/update/deletion are performed in DB transactions to keep account balances and category totals consistent.
+
+
+### Categories (`/api/categories`) — Protected & User-scoped
+
+All categories routes require an authenticated session (session cookie) and operate only on the currently logged-in user's categories.
 
 - `GET /api/categories` — Get all categories for the logged-in user.
-- `POST /api/categories` — Create a new category.
-- `PUT /api/categories/:id` — Update an existing category.
-- `DELETE /api/categories/:id` — Delete a category.
+- `POST /api/categories` — Create a new category (automatically assigned to the logged-in user).
+- `PUT /api/categories/:id` — Update an existing category (only the owner can update).
+- `DELETE /api/categories/:id` — Delete a category (only the owner can delete; disallowed if category has associated expenses).
 
 
-### Spendings / Expenses (`/api/spendings`) — Protected
+### Spendings / Expenses (`/api/spendings`) — Protected & User-scoped
 
-All spendings routes require an authenticated session (session cookie).
+All spendings routes require an authenticated session (session cookie) and operate only on data associated with the logged-in user (via the category ownership).
 
 - `GET /api/spendings` — Get all expenses for the logged-in user.
-- `POST /api/spendings` — Create a new expense.
-- `PUT /api/spendings/:id` — Update an existing expense.
-- `DELETE /api/spendings/:id` — Delete an expense.
+- `POST /api/spendings` — Create a new expense (category must belong to the logged-in user).
+- `PUT /api/spendings/:id` — Update an existing expense (only allowed if the expense belongs to a category owned by the logged-in user).
+- `DELETE /api/spendings/:id` — Delete an expense (only allowed if the expense belongs to a category owned by the logged-in user).
 
 ---
 
@@ -388,4 +404,35 @@ DB_USER=root
 DB_PASSWORD=root
 DB_NAME=gestor_db
 PORT=3000
+```
+
+---
+
+## Production: building a container image 🔧
+
+Use the production Dockerfile and `docker-compose.prod.yml` to run the backend in production.
+
+Important notes:
+- **Set a strong `SESSION_SECRET`** in your `.env` (do not commit secrets to git).
+- Make sure `PORT` and DB credentials are set in `.env`.
+
+Build and run locally (replace `yourdockerhubusername` with your registry/username):
+
+```bash
+# Build image locally
+docker build -t yourdockerhubusername/finance-system:latest .
+
+# Run the container with the .env file
+docker run -d --env-file .env -p 3000:3000 --name finance-backend yourdockerhubusername/finance-system:latest
+
+# Or: build and run with the production compose file
+docker compose -f docker-compose.prod.yml up -d --build
+```
+
+Publish to Docker Hub (example):
+
+```bash
+# Tag and push
+docker tag yourdockerhubusername/finance-system:latest yourdockerhubusername/finance-system:1.0.0
+docker push yourdockerhubusername/finance-system:1.0.0
 ```
