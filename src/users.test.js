@@ -104,4 +104,66 @@ describe('Users API', function () {
     const me2 = await agent.get('/api/users/me');
     expect(me2.status).to.equal(401);
   });
+
+  it('should change password and login with new password', async function () {
+    const agent = request.agent(app);
+
+    // create user
+    const createRes = await agent
+      .post('/api/users')
+      .send({ nome: 'P1', apelido: 'User', username: 'puser', email: 'p1@example.com', morada: 'Addr', telefone: '000', password: 'pass123', confirmpassword: 'pass123' })
+      .set('Accept', 'application/json');
+    expect(createRes.status).to.equal(201);
+
+    const change = await agent
+      .put('/api/users/password')
+      .send({ currentPassword: 'pass123', newPassword: 'newpass123', confirmPassword: 'newpass123' })
+      .set('Accept', 'application/json');
+    expect(change.status).to.equal(200);
+
+    // logout and try logging in with new password
+    await agent.post('/api/users/logout');
+    const login = await request(app)
+      .post('/api/users/login')
+      .send({ email: 'p1@example.com', password: 'newpass123' })
+      .set('Accept', 'application/json');
+    expect(login.status).to.equal(200);
+  });
+
+  it('should return transactions history and apply date filters', async function () {
+    // create a user to own the category
+    const agent = request.agent(app);
+    const createRes = await agent
+      .post('/api/users')
+      .send({ nome: 'H1', apelido: 'User', username: 'huser', email: 'h1@example.com', morada: 'Addr', telefone: '000', password: 'pass123', confirmpassword: 'pass123' })
+      .set('Accept', 'application/json');
+    expect(createRes.status).to.equal(201);
+
+    // create a category for the user
+    const cat = await request(app)
+      .post('/api/categories')
+      .send({ nome: 'Food', descricao: 'Food expenses', username: 'huser' })
+      .set('Accept', 'application/json');
+    expect(cat.status).to.equal(201);
+
+    // create spendings
+    const s1 = await request(app).post('/api/spendings').send({ descricao: 'Lunch', nome: 'Lunch place', preco: 12.5, data: '2025-01-02', categoria: 'Food' });
+    expect(s1.status).to.equal(201);
+    const s2 = await request(app).post('/api/spendings').send({ descricao: 'Coffee', nome: 'Cafe', preco: 3.0, data: '2025-01-01', categoria: 'Food' });
+    expect(s2.status).to.equal(201);
+
+    // get transactions (no filters)
+    const tx = await agent.get('/api/users/transactions');
+    expect(tx.status).to.equal(200);
+    expect(tx.body).to.be.an('array');
+    expect(tx.body.length).to.be.at.least(2);
+    // Verify sorting: first item should have later date (string comparison)
+    expect((tx.body[0].data >= tx.body[1].data)).to.equal(true);
+
+    // apply date filter
+    const filtered = await agent.get('/api/users/transactions?from=2025-01-02&to=2025-01-02');
+    expect(filtered.status).to.equal(200);
+    expect(filtered.body).to.be.an('array');
+    expect(filtered.body.every((r) => r.data === '2025-01-02')).to.equal(true);
+  });
 });
