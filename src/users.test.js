@@ -60,11 +60,11 @@ describe('Users API', function () {
   it('should login with correct credentials', async function () {
     const res = await request(app)
       .post('/api/users/login')
-      .send({ email: 'test@example.com', password: 'secret123' })
+      .send({ username: 'testuser', password: 'secret123' })
       .set('Accept', 'application/json');
 
     expect(res.status).to.equal(200);
-    expect(res.body).to.have.property('email', 'test@example.com');
+    expect(res.body).to.have.property('username', 'testuser');
     // should set a session cookie so the user is logged in
     expect(res.headers).to.have.property('set-cookie');
     const cookies = res.headers['set-cookie'].join('\n');
@@ -75,7 +75,7 @@ describe('Users API', function () {
   it('should reject wrong password', async function () {
     const res = await request(app)
       .post('/api/users/login')
-      .send({ email: 'test@example.com', password: 'wrong' })
+      .send({ username: 'testuser', password: 'wrong' })
       .set('Accept', 'application/json');
 
     expect(res.status).to.equal(401);

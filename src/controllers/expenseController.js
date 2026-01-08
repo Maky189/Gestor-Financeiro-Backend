@@ -1,12 +1,19 @@
 const db = require("../utils/db");
+const pool = require("../config/database");
 const COLLECTION = "gastos";
 const CATEGORIES = "categorias";
 
-// Get all expenses
+// Get all expenses for current logged-in user (based on category -> user)
 async function getAllExpenses(req, res, next) {
   try {
-    const expenses = await db.getAll(COLLECTION);
-    return res.json(expenses);
+    const userId = req.user && req.user.id;
+    if (!userId) return res.status(401).json({ error: 'unauthorized' });
+
+    const [rows] = await pool.query(
+      `SELECT g.* FROM gastos g JOIN categorias c ON g.categoria_id = c.id WHERE c.utilizador_id = ?`,
+      [userId]
+    );
+    return res.json(rows);
   } catch (err) {
     console.error("Failed to list expenses: ", err);
     next(err);
@@ -38,17 +45,45 @@ async function createExpenses(req, res, next) {
       });
     }
 
-    const payload = {
-      descricao,
-      nome,
-      preco,
-      data: data || new Date().toISOString().slice(0, 10),
-      categoria_id: categoriaBD.id,
-    };
+    // ensure the category belongs to the logged-in user
+    const userId = req.user && req.user.id;
+    if (!userId) return res.status(401).json({ error: 'unauthorized' });
+    if (String(categoriaBD.utilizador_id) !== String(userId)) {
+      return res.status(403).json({ success: false, error: 'forbidden' });
+    }
 
-    const result = await db.insert(COLLECTION, payload);
+    // ensure user has an account
+    const account = await db.getByField('conta', 'utilizador_id', userId);
+    if (!account) {
+      return res.status(400).json({ success: false, error: 'account not found' });
+    }
 
-    return res.status(201).json(result);
+    // perform insert and related updates in a transaction
+    const conn = await pool.getConnection();
+    try {
+      await conn.beginTransaction();
+
+      const insertQuery = 'INSERT INTO gastos (descricao, nome, preco, data, categoria_id) VALUES (?, ?, ?, ?, ?)';
+      const insertParams = [descricao, nome, preco, data || new Date().toISOString().slice(0, 10), categoriaBD.id];
+      const [insertResult] = await conn.query(insertQuery, insertParams);
+      const expenseId = insertResult.insertId;
+
+      // decrement account balance
+      await conn.query('UPDATE conta SET saldo_atual = saldo_atual - ? WHERE utilizador_id = ?', [preco, userId]);
+
+      // increase category total
+      await conn.query('UPDATE categorias SET total_categoria = total_categoria + ? WHERE id = ?', [preco, categoriaBD.id]);
+
+      await conn.commit();
+
+      const created = await db.getById(COLLECTION, expenseId);
+      return res.status(201).json(created);
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
   } catch (err) {
     console.error("Error creating expenses: ", err);
     next(err);
@@ -80,6 +115,12 @@ async function updateExpenses(req, res, next) {
           error: "Category does not exist.",
         });
       }
+      // ensure category belongs to user
+      const userId = req.user && req.user.id;
+      if (!userId) return res.status(401).json({ error: 'unauthorized' });
+      if (String(cat.utilizador_id) !== String(userId)) {
+        return res.status(403).json({ success: false, error: 'forbidden' });
+      }
       payload.categoria_id = cat.id;
     }
 
@@ -90,14 +131,68 @@ async function updateExpenses(req, res, next) {
       });
     }
 
-    const result = await db.update(COLLECTION, id, payload);
-
-    if (!result || result.affectedRows === 0) {
-      return res.status(404).json({
-        success: false,
-        error: "Expenses not found.",
-      });
+    // ensure the expense exists and is owned by user (via category)
+    const existing = await db.getById(COLLECTION, id);
+    if (!existing) {
+      return res.status(404).json({ success: false, error: 'Expenses not found.' });
     }
+    const catOfExisting = await db.getById(CATEGORIES, existing.categoria_id);
+    const userId = req.user && req.user.id;
+    if (!userId) return res.status(401).json({ error: 'unauthorized' });
+    if (!catOfExisting || String(catOfExisting.utilizador_id) !== String(userId)) {
+      return res.status(403).json({ success: false, error: 'forbidden' });
+    }
+
+    // if price or category changed, update category totals and account balance atomically
+    const priceOld = Number(existing.preco || 0);
+    const priceNew = payload.preco !== undefined ? Number(payload.preco) : priceOld;
+    const oldCategoryId = existing.categoria_id;
+    const newCategoryId = payload.categoria_id !== undefined ? payload.categoria_id : oldCategoryId;
+
+    if (priceOld !== priceNew || String(oldCategoryId) !== String(newCategoryId)) {
+      const conn = await pool.getConnection();
+      try {
+        await conn.beginTransaction();
+
+        // adjust categories totals
+        if (String(oldCategoryId) === String(newCategoryId)) {
+          const delta = priceNew - priceOld;
+          if (delta !== 0) {
+            await conn.query('UPDATE categorias SET total_categoria = total_categoria + ? WHERE id = ?', [delta, oldCategoryId]);
+          }
+        } else {
+          // moved category: subtract old price from old category and add new price to new category
+          await conn.query('UPDATE categorias SET total_categoria = total_categoria - ? WHERE id = ?', [priceOld, oldCategoryId]);
+          await conn.query('UPDATE categorias SET total_categoria = total_categoria + ? WHERE id = ?', [priceNew, newCategoryId]);
+        }
+
+        // adjust account balance (user's account)
+        const deltaAccount = priceNew - priceOld; // if positive, user pays more -> subtract more
+        if (deltaAccount !== 0) {
+          await conn.query('UPDATE conta SET saldo_atual = saldo_atual - ? WHERE utilizador_id = ?', [deltaAccount, userId]);
+        }
+
+        // perform update on expense
+        const keys = Object.keys(payload);
+        const setClause = keys.map((k) => `\`${k}\` = ?`).join(', ');
+        const values = keys.map((k) => payload[k]);
+        values.push(id);
+        await conn.query(`UPDATE \`${COLLECTION}\` SET ${setClause} WHERE id = ?`, values);
+
+        await conn.commit();
+
+        const updated = await db.getById(COLLECTION, id);
+        return res.json({ success: true, data: updated, message: 'Expenses updated successfully.' });
+      } catch (err) {
+        await conn.rollback();
+        throw err;
+      } finally {
+        conn.release();
+      }
+    }
+
+    // no price/category changes — simple update
+    const result = await db.update(COLLECTION, id, payload);
 
     return res.json({
       success: true,
@@ -130,6 +225,14 @@ async function deleteExpenses(req, res, next) {
       });
     }
 
+    // ensure expense belongs to user via its category
+    const cat = await db.getById(CATEGORIES, expense.categoria_id);
+    const userId = req.user && req.user.id;
+    if (!userId) return res.status(401).json({ error: 'unauthorized' });
+    if (!cat || String(cat.utilizador_id) !== String(userId)) {
+      return res.status(403).json({ success: false, error: 'forbidden' });
+    }
+
     const hasDependencies = await checkDependencies(id);
     if (hasDependencies) {
       return res.status(400).json({
@@ -138,22 +241,38 @@ async function deleteExpenses(req, res, next) {
       });
     }
 
-    const result = await db.remove(COLLECTION, id);
-    if (!result) {
-      return res.status(400).json({
-        success: false,
-        error: "Failed to delete expenses.",
-      });
-    }
+    // perform deletion and related adjustments in a transaction: refund to account and deduct from category total
+    const conn = await pool.getConnection();
+    try {
+      await conn.beginTransaction();
 
-    return res.json({
-      success: true,
-      message: "Expenses deleted successfully.",
-    });
+      // refund account
+      await conn.query('UPDATE conta SET saldo_atual = saldo_atual + ? WHERE utilizador_id = ?', [expense.preco, userId]);
+
+      // subtract from category total
+      await conn.query('UPDATE categorias SET total_categoria = total_categoria - ? WHERE id = ?', [expense.preco, expense.categoria_id]);
+
+      // delete expense
+      await conn.query('DELETE FROM gastos WHERE id = ?', [id]);
+
+      await conn.commit();
+
+      return res.json({ success: true, message: 'Expenses deleted successfully.' });
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
   } catch (err) {
     console.error("Error deleting expenses: ", err);
     next(err);
   }
+}
+
+async function checkDependencies(expenseId) {
+  const [rows] = await pool.query('SELECT 1 FROM chaves WHERE gasto_id = ? LIMIT 1', [expenseId]);
+  return rows.length > 0;
 }
 
 module.exports = {

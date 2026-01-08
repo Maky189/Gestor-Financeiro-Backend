@@ -5,19 +5,19 @@ const ensureAuth = require('../middleware/ensureAuth');
 
 const router = express.Router();
 
-router.get('/', ctrl.list);
+router.get('/', ensureAuth, ctrl.list);
 
 router.post('/login', ctrl.login);
 
 // return current logged-in user
-router.get('/me', ctrl.me);
+router.get('/me', ensureAuth, ctrl.me);
 
 // logout (destroy session)
-router.post('/logout', ctrl.logout);
+router.post('/logout', ensureAuth, ctrl.logout);
 
 router.post('/', validateCreate, ctrl.create);
 
-router.delete('/', ctrl.remove);
+router.delete('/', ensureAuth, ctrl.remove);
 
 router.put('/password', ensureAuth, ctrl.changePassword);
 

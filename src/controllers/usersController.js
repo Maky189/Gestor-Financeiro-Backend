@@ -52,6 +52,14 @@ async function create(req, res, next) {
     const record = await db.insert(COLLECTION, payload);
 
     const { password: _pw, ...safe } = record;
+    try {
+      const numero_conta = String(Math.floor(10000000 + Math.random() * 90000000));
+      const contaPayload = { numero_conta, saldo_atual: 1000, utilizador_id: record.id };
+      await db.insert('conta', contaPayload);
+    } catch (e) {
+      console.error('Failed to create default account for user', e);
+    }
+
     // establish session so user is logged in after registration
     if (req.session) {
       req.session.user = { id: record.id, username: record.username, email: record.email };
@@ -64,11 +72,11 @@ async function create(req, res, next) {
 
 async function login(req, res, next) {
   try {
-    const email = req.body && req.body.email ? String(req.body.email).trim().toLowerCase() : '';
+    const username = req.body && req.body.username ? String(req.body.username).trim() : '';
     const password = req.body && req.body.password ? String(req.body.password) : '';
-    if (!email || !password) return res.status(400).json({ error: 'email and password required' });
+    if (!username || !password) return res.status(400).json({ error: 'username and password required' });
 
-    const found = await db.getByField(COLLECTION, 'email', email);
+    const found = await db.getByField(COLLECTION, 'username', username);
     if (!found) return res.status(404).json({ ok: false, error: 'Not found' });
 
     const match = await bcrypt.compare(password, found.password);

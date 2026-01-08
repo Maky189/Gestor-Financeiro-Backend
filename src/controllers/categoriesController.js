@@ -3,10 +3,14 @@ const db = require("../utils/db");
 const COLLECTION = "categorias";
 const USERS = "utilizador";
 
-// Get all categories
+// Get all categories (for current logged in user)
 async function getAllCategories(req, res, next) {
   try {
-    const categories = await db.getAll(COLLECTION);
+    const userId = req.user && req.user.id;
+    if (!userId) return res.status(401).json({ error: 'unauthorized' });
+
+    const all = await db.getAll(COLLECTION);
+    const categories = all.filter((c) => String(c.utilizador_id) === String(userId));
     return res.json(categories);
   } catch (error) {
     console.error("Failed to list categories:", error);
@@ -14,25 +18,20 @@ async function getAllCategories(req, res, next) {
   }
 }
 
-// Create a new category
+// Create a new category (for current logged-in user)
 async function createCategory(req, res, next) {
-  const { nome, descricao, username } = req.body;
-  if (!nome || !descricao || !username) {
+  const { nome, descricao } = req.body;
+  const userId = req.user && req.user.id;
+  if (!userId) return res.status(401).json({ error: 'unauthorized' });
+  if (!nome || !descricao) {
     return res
       .status(400)
       .json({ success: false, error: "Required fields are missing" });
   }
 
   try {
-    const user = await db.getByField(USERS, "username", username);
-    if (!user) {
-      return res
-        .status(400)
-        .json({ success: false, error: "User does not exist" });
-    }
+    const utilizador_id = userId;
 
-    const utilizador_id = user.id;
-    
     const allCategories = await db.getAll(COLLECTION);
     const duplicate = allCategories.some((c) => {
       if (!c) return false;
@@ -61,10 +60,10 @@ async function createCategory(req, res, next) {
   }
 }
 
-// Update an existing category
+// Update an existing category (only owner may update)
 async function updateCategory(req, res, next) {
   const { id } = req.params;
-  const { nome, descricao, utilizador_id } = req.body;
+  const { nome, descricao } = req.body;
   if (!id) {
     return res
       .status(400)
@@ -72,18 +71,18 @@ async function updateCategory(req, res, next) {
   }
 
   try {
+    const category = await db.getById(COLLECTION, id);
+    if (!category) return res.status(404).json({ success: false, error: 'Category not found.' });
+
+    const userId = req.user && req.user.id;
+    if (!userId) return res.status(401).json({ error: 'unauthorized' });
+    if (String(category.utilizador_id) !== String(userId)) {
+      return res.status(403).json({ success: false, error: 'forbidden' });
+    }
+
     const payload = {};
     if (nome !== undefined) payload.nome = nome;
     if (descricao !== undefined) payload.descricao = descricao;
-    if (utilizador_id !== undefined) {
-      const userExists = await db.getByField(USERS, "id", utilizador_id);
-      if (!userExists) {
-        return res
-          .status(400)
-          .json({ success: false, error: "User does not exist" });
-      }
-      payload.utilizador_id = utilizador_id;
-    }
 
     if (Object.keys(payload).length === 0) {
       return res.status(400).json({
@@ -93,12 +92,6 @@ async function updateCategory(req, res, next) {
     }
 
     const result = await db.update(COLLECTION, id, payload);
-
-    if (!result || result.affectedRows === 0) {
-      return res
-        .status(404)
-        .json({ success: false, error: "Category not found." });
-    }
 
     return res.json({
       success: true,
@@ -111,7 +104,7 @@ async function updateCategory(req, res, next) {
   }
 }
 
-// Delete a category
+// Delete a category (only owner, and only if no related expenses)
 async function deleteCategory(req, res, next) {
   const { id } = req.params;
   if (!id) {
@@ -127,6 +120,12 @@ async function deleteCategory(req, res, next) {
       return res
         .status(404)
         .json({ success: false, error: "Category not found." });
+    }
+
+    const userId = req.user && req.user.id;
+    if (!userId) return res.status(401).json({ error: 'unauthorized' });
+    if (String(category.utilizador_id) !== String(userId)) {
+      return res.status(403).json({ success: false, error: 'forbidden' });
     }
 
     const [gastos] = await pool.query(
