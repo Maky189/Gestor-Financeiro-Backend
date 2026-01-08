@@ -19,6 +19,10 @@ router.post('/', validateCreate, ctrl.create);
 
 router.delete('/', ensureAuth, ctrl.remove);
 
-router.get('/:username', ensureAuth, ctrl.check);
+router.put('/password', ensureAuth, ctrl.changePassword);
+
+router.get('/transactions', ensureAuth, ctrl.transactions);
+
+router.get('/:username', ctrl.check);
 
 module.exports = router;

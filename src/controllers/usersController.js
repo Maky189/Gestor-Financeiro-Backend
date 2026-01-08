@@ -1,6 +1,9 @@
 const db = require('../utils/db');
 const bcrypt = require('bcryptjs');
+const pool = require('../config/database');
 const COLLECTION = 'utilizador';
+const EXPENSES = 'gastos';
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // lista de users
 async function list(req, res, next) {
@@ -151,5 +154,84 @@ async function logout(req, res, next) {
   }
 }
 
-module.exports = { list, create, check, remove, login, me, logout };
+// change password for logged-in user
+async function changePassword(req, res, next) {
+  try {
+    const user = req.user || (req.session && req.session.user);
+    if (!user) return res.status(401).json({ error: 'unauthorized' });
+
+    const id = user.id;
+    const currentPassword = req.body && req.body.currentPassword ? String(req.body.currentPassword) : '';
+    const newPassword = req.body && req.body.newPassword ? String(req.body.newPassword) : '';
+    const confirmPassword = req.body && req.body.confirmPassword ? String(req.body.confirmPassword) : '';
+
+    if (!currentPassword || !newPassword || !confirmPassword) return res.status(400).json({ error: 'current, new and confirm passwords required' });
+    if (newPassword.length < 6) return res.status(400).json({ error: 'password must be at least 6 characters' });
+    if (newPassword !== confirmPassword) return res.status(400).json({ error: 'passwords do not match' });
+
+    const meRecord = await db.getById(COLLECTION, id);
+    if (!meRecord) return res.status(404).json({ error: 'user not found' });
+
+    const match = await bcrypt.compare(currentPassword, meRecord.password);
+    if (!match) return res.status(401).json({ error: 'invalid credentials' });
+
+    const hash = await bcrypt.hash(newPassword, 10);
+    await db.update(COLLECTION, id, { password: hash });
+    return res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// transactions history for logged-in user
+async function transactions(req, res, next) {
+  try {
+    const user = req.user || (req.session && req.session.user);
+    if (!user) return res.status(401).json({ error: 'unauthorized' });
+
+    // support optional filters: from, to (YYYY-MM-DD)
+    const from = req.query && req.query.from ? String(req.query.from) : null;
+    const to = req.query && req.query.to ? String(req.query.to) : null;
+
+    // test env uses JSON DB; filter by categories owned by user
+    if (process.env.NODE_ENV === 'test') {
+      const categories = await db.getAll('categorias');
+      const userCatIds = categories.filter((c) => String(c.utilizador_id) === String(user.id)).map((c) => c.id);
+
+      let list = await db.getAll(EXPENSES);
+      list = list.filter((r) => userCatIds.some((id) => String(id) === String(r.categoria_id)));
+
+      if (from) list = list.filter((r) => r.data && String(r.data) >= from);
+      if (to) list = list.filter((r) => r.data && String(r.data) <= to);
+
+      list.sort((a, b) => {
+        if (!a.data || !b.data) return 0;
+        return String(b.data).localeCompare(String(a.data));
+      });
+
+      return res.json(list);
+    }
+
+    //run a SQL JOIN to select only user's transactions
+    const sqlParts = ['SELECT g.* FROM `gastos` g JOIN `categorias` c ON g.categoria_id = c.id WHERE c.utilizador_id = ?'];
+    const params = [user.id];
+    if (from) {
+      sqlParts.push('AND g.data >= ?');
+      params.push(from);
+    }
+    if (to) {
+      sqlParts.push('AND g.data <= ?');
+      params.push(to);
+    }
+    sqlParts.push('ORDER BY g.data DESC');
+
+    const sql = sqlParts.join(' ');
+    const [rows] = await pool.query(sql, params);
+    return res.json(rows || []);
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { list, create, check, remove, login, me, logout, changeEmail, changePassword, transactions };
 
