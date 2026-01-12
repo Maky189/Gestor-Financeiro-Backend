@@ -51,7 +51,7 @@ async function createCategory(req, res, next) {
       });
     }
 
-    const payload = { nome, descricao, utilizador_id };
+    const payload = { nome, utilizador_id };
     const result = await db.insert(COLLECTION, payload);
     return res.status(201).json(result);
   } catch (error) {
