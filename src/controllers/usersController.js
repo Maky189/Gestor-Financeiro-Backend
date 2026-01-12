@@ -233,5 +233,5 @@ async function transactions(req, res, next) {
   }
 }
 
-module.exports = { list, create, check, remove, login, me, logout, changeEmail, changePassword, transactions };
+module.exports = { list, create, check, remove, login, me, logout, changePassword, transactions };
 

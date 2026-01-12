@@ -20,13 +20,13 @@ async function getAllCategories(req, res, next) {
 
 // Create a new category (for current logged-in user)
 async function createCategory(req, res, next) {
-  const { nome, descricao } = req.body;
+  const { nome } = req.body;
   const userId = req.user && req.user.id;
   if (!userId) return res.status(401).json({ error: 'unauthorized' });
-  if (!nome || !descricao) {
+  if (!nome) {
     return res
       .status(400)
-      .json({ success: false, error: "Required fields are missing" });
+      .json({ success: false, error: "Required field is missing" });
   }
 
   try {

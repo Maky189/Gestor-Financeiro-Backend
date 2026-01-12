@@ -16,7 +16,6 @@ CREATE TABLE IF NOT EXISTS utilizador(
 CREATE TABLE IF NOT EXISTS categorias(
     id INT PRIMARY KEY AUTO_INCREMENT,
     nome VARCHAR(30) NOT NULL,
-    descricao VARCHAR(255) NOT NULL,
     utilizador_id INT,
     total_categoria DOUBLE DEFAULT 0.0 NOT NULL,
     FOREIGN KEY (utilizador_id) REFERENCES utilizador(id),
