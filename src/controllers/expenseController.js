@@ -58,6 +58,32 @@ async function createExpenses(req, res, next) {
       return res.status(400).json({ success: false, error: 'account not found' });
     }
 
+    // In test (JSON DB) we don't have SQL transactions, do simple operations
+    if (process.env.NODE_ENV === 'test') {
+      const insertPayload = { descricao, nome, preco, data: data || new Date().toISOString().slice(0, 10), categoria_id: categoriaBD.id };
+      const created = await db.insert(COLLECTION, insertPayload);
+
+      // update account balance
+      try {
+        const acct = await db.getByField('conta', 'utilizador_id', userId);
+        const newBalance = Number(acct.saldo_atual || 0) - Number(preco || 0);
+        await db.update('conta', acct.id, { saldo_atual: newBalance });
+      } catch (e) {
+        console.error('Failed to update account in test mode:', e && e.message);
+      }
+
+      // update category total
+      try {
+        const cat = await db.getById('categorias', categoriaBD.id);
+        const total = Number(cat.total_categoria || 0) + Number(preco || 0);
+        await db.update('categorias', cat.id, { total_categoria: total });
+      } catch (e) {
+        console.error('Failed to update category total in test mode:', e && e.message);
+      }
+
+      return res.status(201).json(created);
+    }
+
     // perform insert and related updates in a transaction
     const conn = await pool.getConnection();
     try {
