@@ -51,15 +51,30 @@ async function create(req, res, next) {
 
     const record = await db.insert(COLLECTION, payload);
 
+    try {
+      const defaultCategories = ["Alimentação", "Entretenimento", "Saúde", "Transporte", "Lazer", "Gastos pessoais"];
+
+      for (const nome of defaultCategories) {
+        const catPayload = { nome, utilizador_id: record.id };
+        try {
+          await db.insert('categorias', catPayload);
+        } catch (e) {
+          "Failed to create default category:";
+        }
+      }
+    } catch (e) {
+      console.warn("Failed to create default categories for new user:", record.id, e && e.message);
+    }
+
     const { password: _pw, ...safe } = record;
+
     try {
       const numero_conta = String(Math.floor(10000000 + Math.random() * 90000000));
       const contaPayload = { numero_conta, saldo_atual: 1000, utilizador_id: record.id };
       await db.insert('conta', contaPayload);
     } catch (e) {
-      console.error('Failed to create default account for user', e);
+      console.error("Failed to create default account for new user:", e);
     }
-
     // establish session so user is logged in after registration
     if (req.session) {
       req.session.user = { id: record.id, username: record.username, email: record.email };
@@ -72,11 +87,12 @@ async function create(req, res, next) {
 
 async function login(req, res, next) {
   try {
+    const email = req.body && req.body.email ? String(req.body.email).trim().toLowerCase() : '';
     const username = req.body && req.body.username ? String(req.body.username).trim() : '';
     const password = req.body && req.body.password ? String(req.body.password) : '';
-    if (!username || !password) return res.status(400).json({ error: 'username and password required' });
+    if ((!email && !username) || !password) return res.status(400).json({ error: 'email/username and password required' });
 
-    const found = await db.getByField(COLLECTION, 'username', username);
+    const found = email ? await db.getByField(COLLECTION, 'email', email) : await db.getByField(COLLECTION, 'username', username);
     if (!found) return res.status(404).json({ ok: false, error: 'Not found' });
 
     const match = await bcrypt.compare(password, found.password);
@@ -124,7 +140,7 @@ async function remove(req, res, next) {
   }
 }
 
-module.exports = { list, create, check, remove, login };
+
 
 async function me(req, res, next) {
   try {

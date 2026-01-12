@@ -140,16 +140,16 @@ describe('Users API', function () {
     expect(createRes.status).to.equal(201);
 
     // create a category for the user
-    const cat = await request(app)
+    const cat = await agent
       .post('/api/categories')
       .send({ nome: 'Food', descricao: 'Food expenses', username: 'huser' })
       .set('Accept', 'application/json');
     expect(cat.status).to.equal(201);
 
     // create spendings
-    const s1 = await request(app).post('/api/spendings').send({ descricao: 'Lunch', nome: 'Lunch place', preco: 12.5, data: '2025-01-02', categoria: 'Food' });
+    const s1 = await agent.post('/api/spendings').send({ descricao: 'Lunch', nome: 'Lunch place', preco: 12.5, data: '2025-01-02', categoria: 'Food' });
     expect(s1.status).to.equal(201);
-    const s2 = await request(app).post('/api/spendings').send({ descricao: 'Coffee', nome: 'Cafe', preco: 3.0, data: '2025-01-01', categoria: 'Food' });
+    const s2 = await agent.post('/api/spendings').send({ descricao: 'Coffee', nome: 'Cafe', preco: 3.0, data: '2025-01-01', categoria: 'Food' });
     expect(s2.status).to.equal(201);
 
     // get transactions (no filters)
