@@ -58,6 +58,12 @@ async function createExpenses(req, res, next) {
       return res.status(400).json({ success: false, error: 'account not found' });
     }
 
+    // check sufficient balance
+    const currentBalance = Number(account.saldo_atual || 0);
+    if (currentBalance - Number(preco) < 0) {
+      return res.status(400).json({ success: false, error: 'Insufficient balance.' });
+    }
+
     // In test (JSON DB) we don't have SQL transactions, do simple operations
     if (process.env.NODE_ENV === 'test') {
       const insertPayload = { descricao, nome, preco, data: data || new Date().toISOString().slice(0, 10), categoria_id: categoriaBD.id };
@@ -176,6 +182,18 @@ async function updateExpenses(req, res, next) {
     const newCategoryId = payload.categoria_id !== undefined ? payload.categoria_id : oldCategoryId;
 
     if (priceOld !== priceNew || String(oldCategoryId) !== String(newCategoryId)) {
+      // check sufficient balance for the change
+      const account = await db.getByField('conta', 'utilizador_id', userId);
+      if (!account) {
+        return res.status(400).json({ success: false, error: 'account not found' });
+      }
+      const currentBalance = Number(account.saldo_atual || 0);
+      const deltaAccount = priceNew - priceOld;
+      const newBalance = currentBalance - deltaAccount;
+      if (newBalance < 0) {
+        return res.status(400).json({ success: false, error: 'Insufficient balance.' });
+      }
+
       const conn = await pool.getConnection();
       try {
         await conn.beginTransaction();

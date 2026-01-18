@@ -101,7 +101,7 @@ async function login(req, res, next) {
     const { password: _pw, ...safe } = found;
     // set session so user is considered logged in
     if (req.session) {
-      req.session.user = { id: found.id, username: found.username, email: found.email };
+      req.session.user = { id: found.id, username: found.username, email: found.email, nome: found.nome, apelido: found.apelido };
     }
     return res.json(safe);
   } catch (err) {

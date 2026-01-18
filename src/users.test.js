@@ -95,6 +95,8 @@ describe('Users API', function () {
     const me = await agent.get('/api/users/me');
     expect(me.status).to.equal(200);
     expect(me.body).to.have.property('email', 'sess@example.com');
+    expect(me.body).to.have.property('nome', 'Sess');
+    expect(me.body).to.have.property('apelido', 'User');
 
     // logout
     const out = await agent.post('/api/users/logout');
