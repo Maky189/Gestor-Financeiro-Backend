@@ -8,6 +8,8 @@ router.use(ensureAuth);
 
 router.get("/", accountController.getAccount);
 
+router.get("/saldo", accountController.getSaldo);
+
 router.post("/saldo", accountController.updateAccountSaldo);
 
 module.exports = router;

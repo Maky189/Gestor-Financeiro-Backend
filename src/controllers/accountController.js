@@ -1,4 +1,3 @@
-const pool = require("../config/database");
 const db = require("../utils/db");
 const COLLECTION = "conta";
 
@@ -8,7 +7,7 @@ async function getAccount(req, res, next) {
     const userId = req.user && req.user.id;
     if (!userId) return res.status(401).json({ error: "unauthorized" });
 
-    const account = await db.getByField("conta", "utilizador_id", userId);
+    const account = await db.getByField(COLLECTION, "utilizador_id", userId);
     if (!account) return res.status(404).json({ error: "account not found" });
     return res.json(account);
   } catch (err) {
@@ -17,41 +16,59 @@ async function getAccount(req, res, next) {
   }
 }
 
-// POST account saldo_atual update
-async function updateAccountSaldo(req, res, next) {
+// Get saldo_atual update for the current logged-in user
+async function getSaldo(req, res, next) {
   try {
     const userId = req.user && req.user.id;
     if (!userId) return res.status(401).json({ error: "unauthorized" });
 
-    const { saldo_atual } = req.body || {};
-    if (saldo_atual === undefined) {
-      return res.status(400).json({ error: "saldo_atual is required" });
-    }
-
-    const newSaldo = Number(saldo_atual);
-    if (!Number.isFinite(newSaldo)) {
-      return res
-        .status(400)
-        .json({ error: "saldo_atual must be a valid number" });
-    }
-
-    if (newSaldo < 0) {
-      return res.status(400).json({ error: "saldo_atual cannot be negative" });
-    }
-
-    // search user account
     const account = await db.getByField(COLLECTION, "utilizador_id", userId);
     if (!account) return res.status(404).json({ error: "account not found" });
 
-    // update saldo_atual
-    const updatedAccount = await db.update(COLLECTION, account.id, {
-      saldo_atual: newSaldo,
-    });
-    return res.json(updatedAccount);
+    return res.json({ saldo_atual: Number(account.saldo_atual) || 0 });
   } catch (err) {
-    console.error("Failed to update saldo:", err);
+    console.error("Failed to get saldo:", err);
     next(err);
   }
 }
 
-module.exports = { getAccount, updateAccountSaldo };
+// POST account saldo_atual update
+async function updateAccountSaldo(req, res, next) {
+  try {
+    const userId = req.user && req.user.id;
+    if (!userId) {
+      return res.status(401).json({ error: "unauthorized" });
+    }
+
+    const { amount } = req.body || {};
+    if (amount === undefined) {
+      return res.status(400).json({ error: "amount is required" });
+    }
+
+    const depositValue = Number(amount);
+    if (!Number.isFinite(depositValue) || depositValue <= 0) {
+      return res
+        .status(400)
+        .json({ error: "amount must be a possitive number" });
+    }
+
+    const account = await db.getByField(COLLECTION, "utilizador_id", userId);
+    if (!account) {
+      return res.status(404).json({ error: "account not found" });
+    }
+
+    const correntSaldo = Number(account.saldo_atual) || 0;
+    const newSaldo = correntSaldo + depositValue;
+
+    const updatedAccount = await db.update(COLLECTION, account.id, {
+      saldo_atual: newSaldo,
+    });
+
+    return res.json({ saldo_atual: updatedAccount.saldo_atual });
+  } catch (err) {
+    console.error("Failed to update account:", err);
+    next(err);
+  }
+}
+
+module.exports = { getAccount, getSaldo, updateAccountSaldo };
