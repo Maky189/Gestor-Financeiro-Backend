@@ -1,0 +1,29 @@
+## Node
+node_modules/
+package-lock.json
+
+# local env files
+.env
+.env.*
+src/environment.env
+
+# local DB / data files
+/src/data/*.json
+/src/*.test.json
+
+# logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
+
+# coverage / build
+coverage/
+dist/
+node_modules/
+package-lock.json/
