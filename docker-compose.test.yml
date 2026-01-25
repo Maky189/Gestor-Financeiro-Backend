@@ -1,28 +1,6 @@
 services:
-  db:
-    image: mariadb:11
-    restart: always
-    environment:
-      MARIADB_ROOT_PASSWORD: root
-      MARIADB_DATABASE: gestor_db
-    volumes:
-      - db_data:/var/lib/mysql
-      - ./sql:/docker-entrypoint-initdb.d
-
-  backend:
-    build: .
-    restart: always
-    depends_on:
-      - db
-    env_file:
-      - .env
-    ports:
-      - "3000:3000"
-    command: sh -c "sleep 5 && npm start"
-
   db_test:
     image: mariadb:11
-    restart: always
     environment:
       MARIADB_ROOT_PASSWORD: root
       MARIADB_DATABASE: gestor_db_test
@@ -30,15 +8,15 @@ services:
       - db_test_data:/var/lib/mysql
       - ./sql/Db.test.sql:/docker-entrypoint-initdb.d/Db.test.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "mariadb-admin ping -h 127.0.0.1 -uroot -proot --silent"]
+      test: ["CMD-SHELL", "mariadb-admin ping --silent"]
       interval: 5s
       timeout: 5s
       retries: 30
 
-  teste:
+  backend_test:
     build:
       context: .
-      dockerfile: Dockerfile.test
+      target: test
     depends_on:
       db_test:
         condition: service_healthy
@@ -54,5 +32,4 @@ services:
     command: ["npm", "test"]
 
 volumes:
-  db_data:
   db_test_data:

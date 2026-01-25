@@ -1,0 +1,13 @@
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Install all deps (including dev deps for mocha/supertest)
+COPY package*.json ./
+RUN npm ci
+
+COPY . .
+
+ENV NODE_ENV=integration
+
+CMD ["npm", "test"]
