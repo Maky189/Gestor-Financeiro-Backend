@@ -92,6 +92,14 @@ async function login(req, res, next) {
     const password = req.body && req.body.password ? String(req.body.password) : '';
     if ((!email && !username) || !password) return res.status(400).json({ error: 'email/username and password required' });
 
+    // Suporte ao admin
+    if (username === 'admin' && password === 'admin') {
+      if (req.session) {
+        req.session.user = { username: 'admin', isAdmin: true };
+      }
+      return res.json({ username: 'admin', isAdmin: true });
+    }
+
     const found = email ? await db.getByField(COLLECTION, 'email', email) : await db.getByField(COLLECTION, 'username', username);
     if (!found) return res.status(404).json({ ok: false, error: 'Not found' });
 
@@ -101,7 +109,7 @@ async function login(req, res, next) {
     const { password: _pw, ...safe } = found;
     // set session so user is considered logged in
     if (req.session) {
-      req.session.user = { id: found.id, username: found.username, email: found.email, nome: found.nome, apelido: found.apelido };
+      req.session.user = { id: found.id, username: found.username, email: found.email, nome: found.nome, apelido: found.apelido, isAdmin: false };
     }
     return res.json(safe);
   } catch (err) {

@@ -53,9 +53,15 @@ else {
     return getById(table, id);
   }
 
-  async function remove(table, id) {
-    const [result] = await pool.query(`DELETE FROM \`${table}\` WHERE id = ?`, [id]);
-    return result.affectedRows > 0;
+  // Se field e value forem passados, remove por campo customizado (ex: categoria_id)
+  async function remove(table, id, field, value) {
+    if (field && value !== undefined) {
+      const [result] = await pool.query(`DELETE FROM \`${table}\` WHERE \`${field}\` = ?`, [value]);
+      return result.affectedRows > 0;
+    } else {
+      const [result] = await pool.query(`DELETE FROM \`${table}\` WHERE id = ?`, [id]);
+      return result.affectedRows > 0;
+    }
   }
 
   module.exports = {
