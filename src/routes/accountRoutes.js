@@ -12,4 +12,7 @@ router.get("/saldo", accountController.getSaldo);
 
 router.post("/saldo", accountController.updateAccountSaldo);
 
+// Transfer money to another user's account
+router.post("/transfer", accountController.transfer);
+
 module.exports = router;
